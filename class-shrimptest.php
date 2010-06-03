@@ -17,7 +17,8 @@ class ShrimpTest {
 		// Let other plugins modify various options
 		// TODO: fix cookie domain
 		$this->cookie_domain = apply_filters( 'shrimptest_cookie_domain', false );
-		$this->cookie_path   = apply_filters( 'shrimptest_cookie_path', SITECOOKIEPATH );
+		// TODO: get appropriate path
+		$this->cookie_path   = apply_filters( 'shrimptest_cookie_path', '/' );
 		$this->cookie_name   = apply_filters( 'shrimptest_cookie_name', 'ebisen' );
 		$this->db_prefix     = apply_filters( 'shrimptest_db_prefix', "{$wpdb->prefix}shrimptest_" );
 		$this->cookie_dough	 = COOKIEHASH;
