@@ -8,6 +8,9 @@ class ShrimpTest {
 	var $cookie_dough;
 	var $cookie_days;
 	var $db_version = 4; // change to force database schema update
+	var $blocklist;
+	var $blockterms;
+	var $visitor_id;
 
 	function ShrimpTest( ) { }
 
@@ -30,7 +33,14 @@ class ShrimpTest {
 	}
 	
 	function check_cookie( ) {
-		global $wpdb, $shrimptest_visitor_id;
+		global $wpdb;
+
+		// check if this visitor is on our user agent blocklist, largely a list of spiders
+		$user_agent = $_SERVER['HTTP_USER_AGENT'];
+		if ( $this->is_blocked( $user_agent ) ) {
+			$this->visitor_id = null;
+			return;
+		}
 
 		$id = null;
 		// if there's a cookie...
@@ -44,8 +54,8 @@ class ShrimpTest {
 		if ( !$id )
 			$id = $this->set_cookie();
 		
-		// set global $shrimptest_visitor_id
-		$shrimptest_visitor_id = $id;
+		// set private $visitor_id
+		$this->visitor_id = $id;
 
 	}
 
@@ -79,16 +89,42 @@ class ShrimpTest {
 			return false;
 		}		
 	}
+
+	/*
+	 * load_blocklist: load the user agent blocklist
+	 * @param array $blocklist
+	 */ 	
+	function load_blocklist( $blocklist ) {
+		$this->blocklist = apply_filters( 'shrimptest_blocklist', $blocklist );
+	}
+
+	/*
+	 * load_blocklist: load the user agent blockterms list
+	 * @param array $blockterms
+	 */ 	
+	function load_blockterms( $blockterms ) {
+		$this->blockterms = apply_filters( 'shrimptest_blockterms', $blockterms );
+	}
+
+	function is_blocked( $user_agent ) {
+		if ( !is_array( $this->blockterms ) )
+			$this->blockterms = array( 'this is a dummy string which should never match' );
+		$blockterms_regexp = '%('.join('|',$this->blockterms).')%i';
+		return ( preg_match( $blockterms_regexp, $user_agent )
+						 || array_search( $user_agent, $this->blocklist ) );
+	}
 	
 	/*
 	 * update_visitor_metric
 	 * @param boolean $monotonic - if true, will only update if value is greater
 	 */ 
 	function update_visitor_metric( $metric_id, $value, $monotonic = false, $visitor_id = false ) {
-		global $wpdb, $shrimptest_visitor_id;
+		global $wpdb;
 
 		if ( !$visitor_id )
-			$visitor_id = $shrimptest_visitor_id;
+			$visitor_id = $this->visitor_id;
+		if ( is_null( $visitor_id ) )
+			return null;
 
 		// TODO: validate metric id and/or $value
 		
@@ -97,16 +133,18 @@ class ShrimpTest {
 						  values ({$visitor_id}, {$metric_id}, {$value})
 						on duplicate key update `value` = "
 						. ( $monotonic ? "greatest({$value},value)" : $value );
-		$wpdb->query( $sql );
+		return $wpdb->query( $sql );
 	}
 
 	// NOTE: getting the value of a metric for an individual visitor...
 	// I wrote it, but does this really have a use case?
 	function get_visitor_metric( $metric_id, $visitor_id = false ) {
-		global $wpdb, $shrimptest_visitor_id;
+		global $wpdb;
 
 		if ( !$visitor_id )
-			$visitor_id = $shrimptest_visitor_id;
+			$visitor_id = $this->visitor_id;
+		if ( is_null( $visitor_id ) )
+			return null;
 
 		// TODO: validate metric id
 		
@@ -115,10 +153,12 @@ class ShrimpTest {
 	}
 
 	function get_visitor_variant( $experiment_id, $visitor_id = false ) {
-		global $wpdb, $shrimptest_visitor_id;
+		global $wpdb;
 
 		if ( !$visitor_id )
-			$visitor_id = $shrimptest_visitor_id;
+			$visitor_id = $this->visitor_id;
+		if ( is_null( $visitor_id ) )
+			return null;
 
 		$variant = $wpdb->get_var( "select variant_id from `{$this->db_prefix}visitors_variants`
 																where `experiment_id` = {$experiment_id}
