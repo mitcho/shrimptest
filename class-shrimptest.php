@@ -18,10 +18,8 @@ class ShrimpTest {
 		global $wpdb;
 		
 		// Let other plugins modify various options
-		// TODO: fix cookie domain
-		$this->cookie_domain = apply_filters( 'shrimptest_cookie_domain', false );
-		// TODO: get appropriate path
-		$this->cookie_path   = apply_filters( 'shrimptest_cookie_path', '/' );
+		$this->cookie_domain = apply_filters( 'shrimptest_cookie_domain', COOKIE_DOMAIN );
+		$this->cookie_path   = apply_filters( 'shrimptest_cookie_path', COOKIEPATH );
 		$this->cookie_name   = apply_filters( 'shrimptest_cookie_name', 'ebisen' );
 		$this->db_prefix     = apply_filters( 'shrimptest_db_prefix', "{$wpdb->prefix}shrimptest_" );
 		$this->cookie_dough	 = COOKIEHASH;
@@ -75,8 +73,7 @@ class ShrimpTest {
 			$keepgoing = $wpdb->get_var( "select id from `{$this->db_prefix}visitors` where cookie = X'{$cookie}'" );
 		} while ( $keepgoing );
 		
-		// TODO: set cookie domain // , $this->cookie_domain
-		$success = setcookie( $this->cookie_name, $cookie, time() + 60*60*24*$this->cookie_days, $this->cookie_path );
+		$success = setcookie( $this->cookie_name, $cookie, time() + 60*60*24*$this->cookie_days, $this->cookie_path, $this->cookie_domain );
 		
 		if ( $success ) {
 			$user_agent = $_SERVER['HTTP_USER_AGENT'];
@@ -107,6 +104,16 @@ class ShrimpTest {
 	}
 
 	function is_blocked( $user_agent ) {
+	
+		if ( is_feed() )
+			return true;
+		if ( defined( 'WP_ADMIN' ) && WP_ADMIN )
+			return true;
+		if ( defined( 'XMLRPC_REQUEST' ) && XMLRPC_REQUEST )
+			return true;
+		if ( defined( 'DOING_AJAX' ) && DOING_AJAX )
+			return true;
+	
 		if ( !is_array( $this->blockterms ) )
 			$this->blockterms = array( 'this is a dummy string which should never match' );
 		$blockterms_regexp = '%('.join('|',$this->blockterms).')%i';

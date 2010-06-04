@@ -2329,5 +2329,13 @@ $blockterms = array(
 	"WOLP",
 	"WWWC",
 	"XGET",
-	"Nederland.zoek"
+	"Nederland.zoek",
+	"FeedBurner",
+	"WordPress",
+	"httplib",
+	"libwww",
+	"Java/1.6",
+	"PubSub",
+	"robot",
+	"Feedfetcher"
 );
