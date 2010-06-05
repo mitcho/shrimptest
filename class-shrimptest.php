@@ -29,7 +29,7 @@ class ShrimpTest {
 		add_action( 'init', array( &$this, 'versioning' ) );
 		add_action( 'init', array( &$this, 'check_cookie' ) );
 
-		add_action( 'wp_footer', array( &$this, 'print_js' ) );
+		add_action( 'wp_head', array( &$this, 'print_js' ) );
 		add_action( 'wp_ajax_shrimptest_record', array( &$this, 'record_js' ) );
 		add_action( 'wp_ajax_nopriv_shrimptest_record', array( &$this, 'record_js' ) );
 		
