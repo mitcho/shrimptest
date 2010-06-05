@@ -248,7 +248,7 @@ setTimeout(function() {
 
 		if ( is_null( $this->visitor_id ) )
 			die( 'null' );
-
+		
 		if ( $this->visitor_cookie !== $_REQUEST['c'] ) {
 			// how did they get a different cookie!?
 		}
@@ -258,7 +258,6 @@ setTimeout(function() {
 									 cookies = " . ( isset( $_REQUEST['c'] ) ? '1' : '0' ) . ", 
 									 localstorage = " . ( $_REQUEST['b'] == 'true' ? '1' : '0' ) . " 
 									 where visitor_id = {$this->visitor_id}" );
-		
 		echo "shrimpity shrimp shrimp shrimp"; // just a friendly message
 		exit;
 	}
@@ -268,6 +267,8 @@ setTimeout(function() {
 	 * note here I use site_option's because ShrimpTest db tables exist for each site.
 	 */
 	function versioning( ) {
+		if ( defined( 'DOING_AJAX' ) && DOING_AJAX  )
+			return;
 		$current = array( 'version' => SHRIMPTEST_VERSION, 'db' => $this->db_version );
 		if ( $current !== get_site_option('shrimptest_version') ) {
 			$this->ensure_db();
