@@ -7,10 +7,11 @@ class ShrimpTest {
 	var $db_prefix;
 	var $cookie_dough;
 	var $cookie_days;
-	var $db_version = 4; // change to force database schema update
+	var $db_version = 5; // change to force database schema update
 	var $blocklist;
 	var $blockterms;
 	var $visitor_id;
+	var $visitor_cookie;
 
 	function ShrimpTest( ) { }
 
@@ -28,33 +29,34 @@ class ShrimpTest {
 		add_action( 'init', array( &$this, 'versioning' ) );
 		add_action( 'init', array( &$this, 'check_cookie' ) );
 
+		add_action( 'wp_footer', array( &$this, 'print_js' ) );
+		add_action( 'wp_ajax_shrimptest_record', array( &$this, 'record_js' ) );
+		add_action( 'wp_ajax_nopriv_shrimptest_record', array( &$this, 'record_js' ) );
+		
 	}
 	
 	function check_cookie( ) {
 		global $wpdb;
 
+		$this->visitor_id = $this->visitor_cookie = null;
+
 		// check if this visitor is on our user agent blocklist, largely a list of spiders
 		$user_agent = $_SERVER['HTTP_USER_AGENT'];
 		if ( $this->is_blocked( $user_agent ) ) {
-			$this->visitor_id = null;
 			return;
 		}
 
-		$id = null;
 		// if there's a cookie...
 		if ( isset( $_COOKIE[$this->cookie_name] ) ) {
-			$cookie = $_COOKIE[$this->cookie_name];
+			$this->visitor_cookie = $_COOKIE[$this->cookie_name];
 			// verify that it's actually registered with us, by getting its visitor_id.
-			$id = $wpdb->get_var( "select visitor_id from {$this->db_prefix}visitors where cookie = X'{$cookie}'" );
+			$this->visitor_id = $wpdb->get_var( "select visitor_id from {$this->db_prefix}visitors where cookie = X'{$this->visitor_cookie}'" );
 		}
 
 		// if not registered, or cookie doesn't match, cookie them!
-		if ( !$id )
-			$id = $this->set_cookie();
+		if ( !$this->visitor_id )
+			$this->set_cookie();
 		
-		// set private $visitor_id
-		$this->visitor_id = $id;
-
 	}
 
 	/*
@@ -79,7 +81,8 @@ class ShrimpTest {
 			$user_agent = $_SERVER['HTTP_USER_AGENT'];
 			$ip = $_SERVER['REMOTE_ADDR'];
 			$wpdb->query( "insert into `{$this->db_prefix}visitors` (`cookie`,`user_agent`,`ip`) values (X'{$cookie}','{$user_agent}',inet_aton('{$ip}'))" );
-			$id = $wpdb->insert_id;
+			$this->visitor_id = $wpdb->insert_id;
+			$this->visitor_cookie = $cookie;
 			return $id;
 		} else {
 			// TODO: error handling? Cookie couldn't be set.
@@ -104,6 +107,10 @@ class ShrimpTest {
 	}
 
 	function is_blocked( $user_agent ) {
+
+		// don't block record_js calls
+		if ( defined( 'DOING_AJAX' ) && DOING_AJAX && $_REQUEST['action'] == 'shrimptest_record' )
+			return false;
 	
 		if ( is_feed() )
 			return true;
@@ -116,7 +123,8 @@ class ShrimpTest {
 	
 		if ( !is_array( $this->blockterms ) )
 			$this->blockterms = array( 'this is a dummy string which should never match' );
-		$blockterms_regexp = '%('.join('|',$this->blockterms).')%i';
+		$blockterms = array_map( 'preg_quote', $this->blockterms );
+		$blockterms_regexp = '%('.join('|',$blockterms).')%i';
 		return ( preg_match( $blockterms_regexp, $user_agent )
 						 || array_search( $user_agent, $this->blocklist ) );
 	}
@@ -211,6 +219,50 @@ class ShrimpTest {
 		}
 	}
 
+	function print_js( ) {
+		$cookie_name = preg_quote($this->cookie_name);
+	?>
+<script type="text/javascript">
+setTimeout(function() {
+	var tests = {};
+	tests.a = ( 'sessionStorage' in window );
+	tests.b = ( 'localStorage' in window );
+	var cookieMatch = document.cookie.match( /<?php echo $cookie_name;?>=([a-f0-9]+)/ );
+	if ( cookieMatch !== null )
+		tests.c = cookieMatch[1];
+	var query = 'action=shrimptest_record';
+	for ( var key in tests ) {
+		query += '&' + key + '=' + escape( tests[key] );
+	}
+	var adminajax = "<?php echo admin_url('admin-ajax.php');?>";
+	var req = new XMLHttpRequest( );
+	req.open( 'GET', adminajax + '?' + query, true );
+	req.send( null );
+}, 5);
+</script>
+<?php
+	}
+	
+	function record_js( ) {
+		global $wpdb;
+
+		if ( is_null( $this->visitor_id ) )
+			die( 'null' );
+
+		if ( $this->visitor_cookie !== $_REQUEST['c'] ) {
+			// how did they get a different cookie!?
+		}
+
+		$wpdb->query( "update `{$this->db_prefix}visitors` 
+									 set js = 1, 
+									 cookies = " . ( isset( $_REQUEST['c'] ) ? '1' : '0' ) . ", 
+									 localstorage = " . ( $_REQUEST['b'] == 'true' ? '1' : '0' ) . " 
+									 where visitor_id = {$this->visitor_id}" );
+		
+		echo "shrimpity shrimp shrimp shrimp"; // just a friendly message
+		exit;
+	}
+
 	/*
 	 * versioning: adds DB versioning support
 	 * note here I use site_option's because ShrimpTest db tables exist for each site.
@@ -237,6 +289,9 @@ class ShrimpTest {
 							`cookie` BINARY(16) NOT NULL UNIQUE KEY ,
 							`user_agent` VARCHAR(255) NOT NULL ,
 							`ip` INT UNSIGNED NULL ,
+							`js` BOOL NOT NULL DEFAULT 0 ,
+							`cookies` BOOL NOT NULL DEFAULT 0 ,
+							`localstorage` BOOL NOT NULL DEFAULT 0 ,
 							`timestamp` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 						) ENGINE = MYISAM ;",
 						// TODO: question: should experiments just be a custom post type?
