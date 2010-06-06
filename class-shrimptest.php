@@ -185,6 +185,10 @@ class ShrimpTest {
 							where experiment_id = {$experiment_id}";
 			$variants = $wpdb->get_col( $sql, 0 );
 			$weights  = $wpdb->get_col( $sql, 1 );
+			
+			// there is no such experiment or no variants
+			if ( !is_array($variants) || !count($variants) )
+				return null;
 
 			// use the weighted rand (w_rand) method to get a random variant
 			$variant = $this->w_rand(array_combine($variants, $weights));
