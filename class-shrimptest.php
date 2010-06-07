@@ -49,8 +49,17 @@ class ShrimpTest {
 		// if there's a cookie...
 		if ( isset( $_COOKIE[$this->cookie_name] ) ) {
 			$this->visitor_cookie = $_COOKIE[$this->cookie_name];
+			
 			// verify that it's actually registered with us, by getting its visitor_id.
-			$this->visitor_id = $wpdb->get_var( "select visitor_id from {$this->db_prefix}visitors where cookie = X'{$this->visitor_cookie}'" );
+			$sql = "select visitor_id, cookies from {$this->db_prefix}visitors where cookie = X'{$this->visitor_cookie}'";
+			$this->visitor_id = $wpdb->get_var( $sql, 0 );
+			
+			// if cookie valid but visitor is marked as not having cookie support, correct that.
+			if ( $this->visitor_id && $wpdb->get_var( $sql, 1 ) == 0 ) {
+				$wpdb->query( "update `{$this->db_prefix}visitors` 
+											 set cookies = 1
+											 where visitor_id = {$this->visitor_id}" );
+			}
 		}
 
 		// if not registered, or cookie doesn't match, cookie them!
@@ -224,6 +233,12 @@ class ShrimpTest {
 	}
 
 	function print_js( ) {
+		global $wpdb;
+
+		// if we already know that they have JS, no need to record again.
+		if ( $wpdb->get_var( "select js from `{$this->db_prefix}visitors` where visitor_id = {$this->visitor_id}" ) )
+			return;
+
 		$cookie_name = preg_quote($this->cookie_name);
 	?>
 <script type="text/javascript">
