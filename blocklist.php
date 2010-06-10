@@ -2147,7 +2147,8 @@ $blocklist = array(
 	"ZoomSpider - wrensoft.com",
 	"Zscho.de Crawler/Nutch-1.0-Zscho.de-semantic_patch (Zscho.de Crawler",
 	"zspider/0.9-dev http://feedback.redkolibri.com/",
-	"ZyBorg/1.0 (ZyBorg@WISEnut.com; http://www.WISEnut.com)"
+	"ZyBorg/1.0 (ZyBorg@WISEnut.com; http://www.WISEnut.com)",
+	"Mozilla/5.0 (en-US)"
 );
 $blockterms = array(
 	"BotLink",
