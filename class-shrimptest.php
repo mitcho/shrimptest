@@ -7,7 +7,7 @@ class ShrimpTest {
 	var $db_prefix;
 	var $cookie_dough;
 	var $cookie_days;
-	var $db_version = 5; // change to force database schema update
+	var $db_version = 7; // change to force database schema update
 	var $blocklist;
 	var $blockterms;
 	var $visitor_id;
@@ -33,6 +33,130 @@ class ShrimpTest {
 		add_action( 'wp_ajax_shrimptest_record', array( &$this, 'record_js' ) );
 		add_action( 'wp_ajax_nopriv_shrimptest_record', array( &$this, 'record_js' ) );
 		
+		add_action( 'admin_menu', array( &$this, 'admin_menu' ) );
+		
+	}
+	
+	function admin_menu( ) {
+		// $icon = plugins_url( null, __FILE__ ) . '/shrimp.png';
+		// TODO: fix this:
+		$icon = WP_PLUGIN_URL . '/shrimptest/shrimp.png';
+		$slug = 'shrimptest';
+		$dashboard = add_menu_page( 'ShrimpTest Dashboard', 'ShrimpTest', 'manage_options', $slug, array( &$this, 'admin_dashboard' ), $icon );
+		
+		$settings = add_submenu_page( $slug, 'ShrimpTest Settings', 'Settings', 'manage_options', "{$slug}_settings", array( &$this, 'admin_settings' ) );
+		$experiments = add_submenu_page( $slug, 'ShrimpTest Experiments', 'Experiments', 'manage_options', "{$slug}_experiments", array( &$this, 'admin_experiments' ) );
+		
+		add_action( 'admin_head-'. $dashboard, array( &$this, 'admin_header' ) );
+		add_action( 'admin_head-'. $settings, array( &$this, 'admin_header' ) );
+		add_action( 'admin_head-'. $experiments, array( &$this, 'admin_header' ) );
+		
+	}
+	
+	function admin_header( ) {
+		$icon = WP_PLUGIN_URL . '/shrimptest/shrimp-large.png';
+		echo "<style type=\"text/css\">
+		#icon-shrimptest {background: url($icon) no-repeat center center}
+		</style>
+		<script>
+			jQuery(document).ready(function($) {
+				$('.postbox').children('h3, .handlediv').click(function(){
+					$(this).siblings('.inside').toggle();
+				});
+			});
+		</script>";
+		
+	}
+	
+	function admin_dashboard( ) {
+		include SHRIMPTEST_DIR . '/admin/dashboard.php';
+	}
+
+	function admin_settings( ) {
+		include SHRIMPTEST_DIR . '/admin/settings.php';
+	}
+
+	function admin_experiments( ) {
+		include SHRIMPTEST_DIR . '/admin/experiments.php';
+	}
+
+	function get_active_experiments( ) {
+		return $this->get_experiments( array('status'=>'active') );
+	}
+	
+	function get_experiments( $args = array( ) ) {
+		global $wpdb;
+		$defaults = array(
+			'status' => '',
+			'offset' => 0,
+			'orderby' => 'start_time',
+			'order' => 'ASC',
+		);
+		$r = wp_parse_args( $args, $defaults );
+		
+		$sql = 
+		"select experiment_id, {$this->db_prefix}experiments.name as experiment_name, {$this->db_prefix}metrics.name as metric_name, status, 
+		unix_timestamp(start_time) as start_time, unix_timestamp(end_time) as end_time, unix_timestamp(now()) as now
+		from {$this->db_prefix}experiments
+		join {$this->db_prefix}metrics using (`metric_id`)
+		where 1";
+		
+		if ( !empty( $r['experiment_id'] ) )
+			$sql .= " and experiment_id = {$r[experiment_id]}";
+		
+		if ( !empty( $r['status'] ) ) {
+			if ( is_array( $r['status'] ) )
+				$status = $r['status'];
+			else
+				$status = array( $r['status'] );
+			$sql .= " and status in ('".implode("','",$status)."')";
+		}
+		
+		$sql .= " order by {$r[orderby]} {$r[order]}";
+
+		return $wpdb->get_results( $sql );
+	}
+	
+	function get_experiment_status( $experiment_id ) {
+		global $wpdb;
+		return $wpdb->get_var( "select status from {$this->db_prefix}experiments where experiment_id = {$experiment_id}" );
+	}
+	
+	function get_experiment_stats( $experiment_id ) {
+		global $wpdb;
+
+		$metric_type = $wpdb->get_var( "select type from {$this->db_prefix}metrics join {$this->db_prefix}experiments using (`metric_id`) where experiment_id = {$experiment_id}" );
+		
+		$metric_id = $wpdb->get_var("select metric_id from {$this->db_prefix}experiments where experiment_id = $experiment_id");
+		
+		if ( $metric_type == 'conversion' )
+			$value = "bit_or(ifnull(vm.value,0))";
+		elseif( $metric_type == 'culmulative' )
+			$value = "sum(ifnull(vm.value,0))";
+		elseif( $metric_type == 'average' )
+			$value = "avg(ifnull(vm.value,0))";
+	
+		$unique = "if(cookies = 1, v.visitor_id, concat(ip,user_agent))";
+	
+		$uvsql = "SELECT variant_id, count(distinct variant_id) as variant_count, {$value} as value, {$unique} as unique_visitor_id"
+		       . " FROM `{$this->db_prefix}visitors_variants` as vv "
+		       . " join `{$this->db_prefix}visitors` as v using (`visitor_id`)"
+		       . " left join `{$this->db_prefix}visitors_metrics` as vm"
+		       . " on (vm.visitor_id = vv.visitor_id and vm.metric_id = {$metric_id})"
+		       . " where vv.experiment_id = {$experiment_id}"
+		       . " group by unique_visitor_id"
+		       . " having variant_count = 1";
+		$total_sql = "select count(unique_visitor_id) as N, avg(value) as avg, stddev(value) as sd from ({$uvsql}) as uv";
+		$stats = array();
+		$stats['total'] = $wpdb->get_row( $total_sql );
+		
+		$variant_sql = "select variant_id, variant_name, count(unique_visitor_id) as N, avg(value) as avg, stddev(value) as sd from ({$uvsql}) as uv join {$this->db_prefix}experiments_variants using (variant_id) group by variant_id order by variant_id asc";
+		$variant_stats = $wpdb->get_results( $variant_sql );
+		foreach ( $variant_stats as $variant ) {
+			$stats[$variant->variant_id] = $variant;
+		}
+		
+		return $stats;
 	}
 	
 	function check_cookie( ) {
@@ -183,6 +307,10 @@ class ShrimpTest {
 			$visitor_id = $this->visitor_id;
 		if ( is_null( $visitor_id ) )
 			return null;
+		
+		// if the experiment is not turned on, use the control.
+		if ( $this->get_experiment_status( $experiment_id ) != 'active' )
+			return null;
 
 		$variant = $wpdb->get_var( "select variant_id from `{$this->db_prefix}visitors_variants`
 																where `experiment_id` = {$experiment_id}
@@ -318,6 +446,7 @@ setTimeout(function() {
 						"CREATE TABLE `{$this->db_prefix}experiments` (
 							`experiment_id` INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY ,
 							`name` VARCHAR(255) NOT NULL ,
+							`metric_id` INT UNSIGNED NOT NULL ,
 							`status` varchar(30) default 'inactive' ,
 							`start_time` TIMESTAMP NULL ,
 							`end_time` TIMESTAMP NULL ,
@@ -339,14 +468,20 @@ setTimeout(function() {
 						) ENGINE = MYISAM ;",
 						"CREATE TABLE `{$this->db_prefix}visitors_metrics` (
 							`visitor_id` INT NOT NULL ,
-							`metric_id` INT NOT NULL 
+							`metric_id` INT UNSIGNED NOT NULL 
 								COMMENT 'right now metric_id is tied to experiment_id',
 							`value` FLOAT NOT NULL ,
 							`timestamp` TIMESTAMP NOT NULL
 								DEFAULT CURRENT_TIMESTAMP
 								ON UPDATE CURRENT_TIMESTAMP ,
 							PRIMARY KEY ( `visitor_id` , `metric_id` )
-						) ENGINE = MYISAM ;");
+						) ENGINE = MYISAM ;",
+						"CREATE TABLE `{$this->db_prefix}metrics` (
+							`metric_id` INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY ,
+							`name` VARCHAR( 255 ) NOT NULL,
+							`type` VARCHAR( 255 ) NOT NULL,
+							`timestamp` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+						) ENGINE = MYISAM ");
 		dbDelta( $dbSql );
 		
 	}
