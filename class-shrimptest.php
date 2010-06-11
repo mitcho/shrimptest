@@ -57,6 +57,7 @@ class ShrimpTest {
 		$icon = WP_PLUGIN_URL . '/shrimptest/shrimp-large.png';
 		echo "<style type=\"text/css\">
 		#icon-shrimptest {background: url($icon) no-repeat center center}
+		tr.variant td {padding-left: 15px;}
 		</style>
 		<script>
 			jQuery(document).ready(function($) {

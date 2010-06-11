@@ -50,6 +50,16 @@ foreach( $experiments as $experiment ) {
 	$start_date = date( $date_format, $experiment->start_time );
 	
 	echo "<tr><td>{$experiment->experiment_id}</td><td>{$experiment->experiment_name}</td><td>{$status}</td><td>{$start_date}</td><td>{$experiment->metric_name}</td><td>{$total->N}</td><td>{$total->avg}</td><td>{$total->sd}</td></tr>";
+	
+	foreach ( $stats as $key => $stat ) {
+		if ( $key === 'total' )
+			continue;
+		$name = __("Variant",'shrimptest') . " " . $stat->variant_id;
+		if ($key === 0)
+			$name .= " (" . __("control", 'shrimptest') . ")";
+		echo "<tr class=\"variant\"><td>{$name}</td><td>{$stat->variant_name}</td><td colspan='3'></td><td>{$stat->N}</td><td>{$stat->avg}</td><td>{$stat->sd}</td></tr>";
+	}
+	
 }
 
 ?>
