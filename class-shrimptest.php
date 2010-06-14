@@ -24,13 +24,14 @@ class ShrimpTest {
 	var $visitor_cookie;
 	var $touched_experiments;
 	var $touched_metrics;
+	var $override_variants;
 
 	function ShrimpTest( ) {
 		// Hint: run init( ) to get the party started.
 	}
 
 	function init( ) {
-		global $wpdb;
+		global $wpdb, $WPAdminBar;
 		
 		// Let other plugins modify various options
 		$this->cookie_domain = apply_filters( 'shrimptest_cookie_domain', COOKIE_DOMAIN );
@@ -46,8 +47,12 @@ class ShrimpTest {
 		add_action( 'wp_footer', array( &$this, 'print_foot' ) );
 		add_action( 'wp_ajax_shrimptest_record', array( &$this, 'record_cookieability' ) );
 		add_action( 'wp_ajax_nopriv_shrimptest_record', array( &$this, 'record_cookieability' ) );
+
+		add_action( 'wp_ajax_shrimptest_override_variant', array( &$this, 'override_variant' ) );
 		
 		add_action( 'admin_menu', array( &$this, 'admin_menu' ) );
+		
+		add_filter( 'wpabar_menuitems', array( &$this, 'filter_adminbar' ) );
 		
 	}
 	
@@ -173,6 +178,16 @@ class ShrimpTest {
 		}
 		
 		return $stats;
+	}
+	
+	/*
+	 * get_experiment_variants: get a list of variants for the current experiment
+	 */
+	function get_experiment_variants( $experiment_id ) {
+		global $wpdb;
+		return $wpdb->get_results( "select variant_id, variant_name
+																from `{$this->db_prefix}experiments_variants`
+																where `experiment_id` = {$experiment_id}" );
 	}
 	
 	function check_cookie( ) {
@@ -345,10 +360,12 @@ class ShrimpTest {
 	function get_visitor_variant( $experiment_id, $visitor_id = false ) {
 		global $wpdb;
 
-		// if the user is exempt (like a logged in admin), return control.
+		// If the user is exempt (like a logged in admin), check if they've overridden the variant.
+		// If not, it will return null for control.
 		if ( $this->exempt_user( ) ) {
-			$this->touch_experiment( $experiment_id, array( 'variant' => null ) );
-			return null;
+			$variant = $this->get_override_variant( $experiment_id );
+			$this->touch_experiment( $experiment_id, array( 'variant' => $variant ) );
+			return $variant;
 		}
 
 		if ( !$visitor_id )
@@ -387,6 +404,14 @@ class ShrimpTest {
 		
 		return $variant;
 	}
+	
+	function get_override_variant( $experiment_id ) {
+		global $user_ID;
+		get_currentuserinfo();
+		if ( !isset( $this->override_variants ) )
+			$this->override_variants = get_user_meta( $user_ID, "shrimptest_override_variants", true );
+		return $this->override_variants[$experiment_id];
+	}
 
 	/*
 	 * w_rand: takes an associated array with numerical values and returns a weighted-random key
@@ -422,7 +447,7 @@ class ShrimpTest {
 	 * logged in.
 	 */
 	function touch_experiment( $experiment_id, $args ) {
-		$this->touched_experiments = array_merge_recursive( $this->touched_experiments, array( $experiment_id => $args ) );
+		$this->touched_experiments[$experiment_id] = array_merge_recursive( $this->touched_experiments[$experiment_id], $args );
 	}
 	/*
 	 * touch_metric: like touch_experiment, but for metrics
@@ -432,23 +457,13 @@ class ShrimpTest {
 	}
 
 	function print_foot( ) {
-		global $wpdb;
+		global $wpdb, $WPAdminBar;
 
 		if ( is_user_logged_in( ) && ( !empty( $this->touched_experiments ) || !empty( $this->touched_metrics ) ) ) {
-			if ( !empty( $this->touched_experiments ) ) {
-				echo "<h3>Experiments on this page:</h3>";
-				foreach ( $this->touched_experiments as $experiment_id => $data ) {
-					$variant = ( $this->exempt_user( ) ? "<em>Control (exempt user)</em>" : $data->variant );
-					echo "Experiment {$experiment_id}: variant #{$variant}<br/>";
-				}
-			}
-			if ( !empty( $this->touched_metrics ) ) {
-				echo "<h3>Metrics recorded on this page:</h3>";
-				foreach ( $this->touched_metrics as $metric_id => $data ) {
-					$value = ( $this->exempt_user( ) ? "<em>(exempt user)</em>" : $data->value );
-					echo "Metric {$metric_id}: value = {$value}<br/>";
-				}
-			}
+			if ( empty( $WPAdminBar ) )
+				$this->print_shrimptest_widget( );
+			else
+				$this->print_adminbar( );
 		}
 
 		// if we already know that they have JS, no need to record again.
@@ -478,6 +493,123 @@ setTimeout(function() {
 <?php
 	}
 	
+	function print_shrimptest_widget( ) {
+		$icon = WP_PLUGIN_URL . '/shrimptest/shrimp.png';
+?>
+<style type="text/css">
+#shrimptest-menu {
+position: fixed; top: 0pt;
+color: #fff; left: 0pt; text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.3);
+}
+#shrimptest-menu span {
+display: inline;
+display: inline-block;
+padding: 10px;
+background-color: rgba(100, 100, 100, 0.8);
+border-left: 2px solid rgb(170, 170, 170);
+text-shadow: -1px -1px 2px rgba(0,0,0,0.2);
+cursor: hand;
+cursor: pointer;
+font-weight: bold;
+}
+#shrimptest-menu span:hover {
+background-color: rgba(180, 180, 180, 0.8);
+}
+#shrimptest-menu span.brand {
+/*cursor: default;*/
+border-left: none;
+}
+#shrimptest-menu a {
+text-decoration: none;
+color: #fff;
+}
+</style>
+<div id="shrimptest-menu">
+<span class="brand"><a href="<?php echo admin_url('admin.php?page=shrimptest');?>">ShrimpTest</a></span><span alt=""><sup>A</sup>/<sub>B</sub></span><span>&#x2605;</span>
+</div>
+<?php
+		if ( !empty( $this->touched_experiments ) ) {
+			echo "<h3>Experiments on this page:</h3>";
+			foreach ( $this->touched_experiments as $experiment_id => $data ) {
+				$variant = ( $this->exempt_user( ) ? "<em>Control (exempt user)</em>" : $data->variant );
+				echo "Experiment {$experiment_id}: variant #{$variant}<br/>";
+			}
+		}
+		if ( !empty( $this->touched_metrics ) ) {
+			echo "<h3>Metrics recorded on this page:</h3>";
+			foreach ( $this->touched_metrics as $metric_id => $data ) {
+				$value = ( $this->exempt_user( ) ? "<em>(exempt user)</em>" : $data->value );
+				echo "Metric {$metric_id}: value = {$value}<br/>";
+			}
+		}
+	}
+	
+	function print_adminbar( ) {
+		// we don't actually need to print anything independently in wp_footer as WP Admin Bar's 
+		// OutputMenuBar operates in wp_footer, so we just filter it with filter_adminbar.
+	}
+	
+	function filter_adminbar( $menus ) {
+
+		// we want to be on the left side of the menu, so find the magical point where we're on the
+		// right edge of the left side.
+		$i = 0;
+		foreach ( $menus as $key => $menu ) {
+			if ( $menu[0]['id'] > 39 )
+				break;
+			$i++;
+		}
+		// now $i has the index for where we want to splice in our new menus.
+
+		if ( !empty( $this->touched_experiments ) ) {
+			$experiments = array( array( 'id'=>'20', 'title'=>'<sup>A</sup>/<sub>B</sub>', 'custom'=>false ) );
+
+			foreach( $this->touched_experiments as $experiment_id => $data ) {
+				$status = $this->get_experiment_status( $experiment_id );
+				// TODO: display experiment name
+				$experiments["admin.php?page=shrimptest_experiments&id={$experiment_id}"] = array( 'id'=>$experiment_id, 'title'=>"Experiment {$experiment_id} <small>(status: {$status})</small>", 'custom'=>false );
+				
+				// display each of the variants
+				foreach ( $this->get_experiment_variants( $experiment_id ) as $variant ) {
+					if ( $variant->variant_id == 0 )
+						$title = "Control";
+					else
+						$title = "Variant {$variant->variant_id}";
+
+					// add variant name
+					if ( !empty( $variant->variant_name ) )
+						$title .= ": {$variant->variant_name}";
+
+					if ( $data['variant'] == $variant->variant_id )
+						$title = "&#x2714; {$title}";
+					else
+						$title = "&#x3000; {$title}";
+						
+					$experiments["admin-ajax.php?action=shrimptest_override_variant&experiment_id={$experiment_id}&variant_id={$variant->variant_id}"] = array( 'id'=>$variant->variant_id, 'title'=>$title, 'custom'=>false );					
+				}
+			}
+
+			array_splice( $menus, $i, 0, array( $experiments ) );
+		}
+
+		if ( !empty( $this->touched_metrics ) ) {
+			$metrics = array( array( 'id'=>'21', 'title'=>'&#x2605;', 'custom'=>false ) );
+
+			foreach( $this->touched_metrics as $metric_id => $data ) {
+				// TODO: display metric name
+				if ( isset( $data->value ) )
+					$value = " <small>(value: $data->value)</small>";
+				else
+					$value = "";
+				$metrics[] = array( 'id' => $metric_id, 'title'=>"Metric {$metric_id}{$value}", 'custom'=>false );
+			}
+
+			array_splice( $menus, $i, 0, array( $metrics ) );
+		}
+
+		return $menus;
+	}
+	
 	function record_cookieability( ) {
 		global $wpdb;
 
@@ -497,6 +629,24 @@ setTimeout(function() {
 		exit;
 	}
 
+	function override_variant( ) {
+		global $user_ID;
+		get_currentuserinfo();
+
+		// TODO: validate experiment and variant ID's
+		$experiment_id = (int) $_REQUEST["experiment_id"];
+		$variant_id = (int) $_REQUEST["variant_id"];
+		
+		$this->override_variants[$experiment_id] = $variant_id;
+		update_user_meta( $user_ID, "shrimptest_override_variants", $this->override_variants );
+
+		if ( isset( $_SERVER['HTTP_REFERER'] ) )
+			wp_redirect( $_SERVER['HTTP_REFERER'] );
+		else
+			echo "<script type=\"text/javascript\">window.history.back();</script>";
+		exit;
+	}
+	
 	/*
 	 * versioning: adds DB versioning support
 	 * note here I use site_option's because ShrimpTest db tables exist for each site.
