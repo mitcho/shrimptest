@@ -31,7 +31,7 @@ class ShrimpTest {
 	}
 
 	function init( ) {
-		global $wpdb, $WPAdminBar;
+		global $wpdb;
 		
 		// Let other plugins modify various options
 		$this->cookie_domain = apply_filters( 'shrimptest_cookie_domain', COOKIE_DOMAIN );
@@ -495,53 +495,87 @@ setTimeout(function() {
 	
 	function print_shrimptest_widget( ) {
 		$icon = WP_PLUGIN_URL . '/shrimptest/shrimp.png';
+		$menus = $this->get_menus( );
 ?>
 <style type="text/css">
 #shrimptest-menu {
 position: fixed; top: 0pt;
 color: #fff; left: 0pt; text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.3);
 }
-#shrimptest-menu span {
+#shrimptest-menu li.brand {
+/*cursor: default;*/
+border-left: none;
+}
+#shrimptest-menu ul {
+list-style: none outside none !important;
+padding: 0;
+margin: 0;
+font: 12px/28px "Lucida Grande","Lucida Sans Unicode",Tahoma,Verdana !important;
+}
+#shrimptest-menu li {
+	margin: 0;
 display: inline;
 display: inline-block;
-padding: 10px;
-background-color: rgba(100, 100, 100, 0.8);
+background-color: rgb(100, 100, 100);
 border-left: 2px solid rgb(170, 170, 170);
 text-shadow: -1px -1px 2px rgba(0,0,0,0.2);
 cursor: hand;
 cursor: pointer;
 font-weight: bold;
 }
-#shrimptest-menu span:hover {
-background-color: rgba(180, 180, 180, 0.8);
-}
-#shrimptest-menu span.brand {
-/*cursor: default;*/
-border-left: none;
-}
-#shrimptest-menu a {
+#shrimptest-menu li a, #shrimptest-menu li span {
 text-decoration: none;
 color: #fff;
+padding: 0 0.75em;
 }
+#shrimptest-menu li:hover {
+background-color: rgb(180, 180, 180);
+}
+#shrimptest-menu li ul {
+	display: none;
+}
+#shrimptest-menu li ul li {
+	background-color: #bbb;
+}
+#shrimptest-menu li ul li a, #shrimptest-menu li ul li span {
+	min-width: 180px;
+	display: block;
+}
+#shrimptest-menu li:hover ul {
+	display: block;
+	position: absolute;
+}
+
 </style>
 <div id="shrimptest-menu">
-<span class="brand"><a href="<?php echo admin_url('admin.php?page=shrimptest');?>">ShrimpTest</a></span><span alt=""><sup>A</sup>/<sub>B</sub></span><span>&#x2605;</span>
+<ul>
+<li class="brand"><a href="<?php echo admin_url('admin.php?page=shrimptest');?>">ShrimpTest</a></li><?php
+	foreach ( $menus as $key => $menu ) {
+
+		if ( empty( $key ) )
+			$str = "<span>{$menu[0][title]}</span>";
+		else
+			$str = "<a href=\"" . admin_url($key) . "\">{$menu[0][title]}</a>";
+
+		echo "<li>{$str}";
+		if ( count($menu) > 1 ) {
+			echo "<ul>";
+			foreach ( $menu as $key => $menuitem ) {
+				if ( $menuitem == $menu[0] )
+					continue;
+				if ( empty( $key ) )
+					$str = "<span>{$menuitem[title]}<span>";
+				else
+					$str = "<a href=\"" . admin_url($key) . "\">{$menuitem[title]}</a>";
+				echo "<li>{$str}</li>";
+			}
+			echo "</li>";
+		}
+		echo "</li>";
+	}
+?></ul>
 </div>
 <?php
-		if ( !empty( $this->touched_experiments ) ) {
-			echo "<h3>Experiments on this page:</h3>";
-			foreach ( $this->touched_experiments as $experiment_id => $data ) {
-				$variant = ( $this->exempt_user( ) ? "<em>Control (exempt user)</em>" : $data->variant );
-				echo "Experiment {$experiment_id}: variant #{$variant}<br/>";
-			}
-		}
-		if ( !empty( $this->touched_metrics ) ) {
-			echo "<h3>Metrics recorded on this page:</h3>";
-			foreach ( $this->touched_metrics as $metric_id => $data ) {
-				$value = ( $this->exempt_user( ) ? "<em>(exempt user)</em>" : $data->value );
-				echo "Metric {$metric_id}: value = {$value}<br/>";
-			}
-		}
 	}
 	
 	function print_adminbar( ) {
@@ -549,18 +583,8 @@ color: #fff;
 		// OutputMenuBar operates in wp_footer, so we just filter it with filter_adminbar.
 	}
 	
-	function filter_adminbar( $menus ) {
-
-		// we want to be on the left side of the menu, so find the magical point where we're on the
-		// right edge of the left side.
-		$i = 0;
-		foreach ( $menus as $key => $menu ) {
-			if ( $menu[0]['id'] > 39 )
-				break;
-			$i++;
-		}
-		// now $i has the index for where we want to splice in our new menus.
-
+	function get_menus( ) {
+		$menus = array();
 		if ( !empty( $this->touched_experiments ) ) {
 			$experiments = array( array( 'id'=>'20', 'title'=>'<sup>A</sup>/<sub>B</sub>', 'custom'=>false ) );
 
@@ -588,8 +612,7 @@ color: #fff;
 					$experiments["admin-ajax.php?action=shrimptest_override_variant&experiment_id={$experiment_id}&variant_id={$variant->variant_id}"] = array( 'id'=>$variant->variant_id, 'title'=>$title, 'custom'=>false );					
 				}
 			}
-
-			array_splice( $menus, $i, 0, array( $experiments ) );
+			$menus[] = $experiments;
 		}
 
 		if ( !empty( $this->touched_metrics ) ) {
@@ -603,10 +626,25 @@ color: #fff;
 					$value = "";
 				$metrics[] = array( 'id' => $metric_id, 'title'=>"Metric {$metric_id}{$value}", 'custom'=>false );
 			}
-
-			array_splice( $menus, $i, 0, array( $metrics ) );
+			$menus[] = $metrics;
 		}
 
+		return $menus;
+	}
+	
+	function filter_adminbar( $menus ) {
+
+		// we want to be on the left side of the menu, so find the magical point where we're on the
+		// right edge of the left side.
+		$i = 0;
+		foreach ( $menus as $key => $menu ) {
+			if ( $menu[0]['id'] > 39 )
+				break;
+			$i++;
+		}
+		// now $i has the index for where we want to splice in our new menus.
+
+		array_splice( $menus, $i, 0, $this->get_menus( ) );
 		return $menus;
 	}
 	
