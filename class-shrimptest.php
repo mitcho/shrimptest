@@ -1,19 +1,33 @@
 <?php
 
 class ShrimpTest {
+
+	// some constants based on WordPress install:
 	var $cookie_domain;
 	var $cookie_path;
-	var $cookie_name;
 	var $db_prefix;
+	
+	// should be configurable:
+	var $cookie_name;
 	var $cookie_dough;
 	var $cookie_days;
+
+	// versioning:	
 	var $db_version = 7; // change to force database schema update
+
+	// user agent filtering lists to be populated
 	var $blocklist;
 	var $blockterms;
+	
+	// variables to track information about/throughout the current execution
 	var $visitor_id;
 	var $visitor_cookie;
+	var $touched_experiments;
+	var $touched_metrics;
 
-	function ShrimpTest( ) { }
+	function ShrimpTest( ) {
+		// Hint: run init( ) to get the party started.
+	}
 
 	function init( ) {
 		global $wpdb;
@@ -29,9 +43,9 @@ class ShrimpTest {
 		add_action( 'init', array( &$this, 'versioning' ) );
 		add_action( 'init', array( &$this, 'check_cookie' ) );
 
-		add_action( 'wp_head', array( &$this, 'print_js' ) );
-		add_action( 'wp_ajax_shrimptest_record', array( &$this, 'record_js' ) );
-		add_action( 'wp_ajax_nopriv_shrimptest_record', array( &$this, 'record_js' ) );
+		add_action( 'wp_footer', array( &$this, 'print_foot' ) );
+		add_action( 'wp_ajax_shrimptest_record', array( &$this, 'record_cookieability' ) );
+		add_action( 'wp_ajax_nopriv_shrimptest_record', array( &$this, 'record_cookieability' ) );
 		
 		add_action( 'admin_menu', array( &$this, 'admin_menu' ) );
 		
@@ -54,6 +68,7 @@ class ShrimpTest {
 	}
 	
 	function admin_header( ) {
+		// TODO: fix URL path
 		$icon = WP_PLUGIN_URL . '/shrimptest/shrimp-large.png';
 		echo "<style type=\"text/css\">
 		#icon-shrimptest {background: url($icon) no-repeat center center}
@@ -165,6 +180,10 @@ class ShrimpTest {
 
 		$this->visitor_id = $this->visitor_cookie = null;
 
+		// check if the current user is exempt, in which case they'll get a null visitor_id
+		if ( $this->exempt_user( ) )
+			return;
+
 		// check if this visitor is on our user agent blocklist, largely a list of spiders
 		$user_agent = $_SERVER['HTTP_USER_AGENT'];
 		if ( $this->is_blocked( $user_agent ) ) {
@@ -242,7 +261,7 @@ class ShrimpTest {
 
 	function is_blocked( $user_agent ) {
 
-		// don't block record_js calls
+		// don't block record_cookieability calls
 		if ( defined( 'DOING_AJAX' ) && DOING_AJAX && $_REQUEST['action'] == 'shrimptest_record' )
 			return false;
 	
@@ -263,12 +282,26 @@ class ShrimpTest {
 						 || array_search( $user_agent, $this->blocklist ) );
 	}
 	
+	function exempt_user( ) {
+		$exempt = false;
+		if ( is_user_logged_in( ) )
+			$exempt = true;
+		$exempt = apply_filters( 'shrimptest_exempt_user', $exempt );
+		return $exempt;
+	}
+	
 	/*
 	 * update_visitor_metric
 	 * @param boolean $monotonic - if true, will only update if value is greater
 	 */ 
 	function update_visitor_metric( $metric_id, $value, $monotonic = false, $visitor_id = false ) {
 		global $wpdb;
+
+		// if the user is exempt (like a logged in admin), return control.
+		if ( $this->exempt_user( ) ) {
+			$this->touch_metric( $metric_id, array( 'value' => null ) );
+			return null;
+		}
 
 		if ( !$visitor_id )
 			$visitor_id = $this->visitor_id;
@@ -282,6 +315,9 @@ class ShrimpTest {
 						  values ({$visitor_id}, {$metric_id}, {$value})
 						on duplicate key update `value` = "
 						. ( $monotonic ? "greatest({$value},value)" : $value );
+
+		$this->touch_metric( $metric_id, array( 'value' => $value ) );
+
 		return $wpdb->query( $sql );
 	}
 
@@ -301,8 +337,19 @@ class ShrimpTest {
 														where `visitor_id` = {$visitor_id}" );
 	}
 
+	/*
+	 * get_visitor_variant: get the variant for the given experiment and visitor
+	 *
+	 * @uses w_rand
+	 */
 	function get_visitor_variant( $experiment_id, $visitor_id = false ) {
 		global $wpdb;
+
+		// if the user is exempt (like a logged in admin), return control.
+		if ( $this->exempt_user( ) ) {
+			$this->touch_experiment( $experiment_id, array( 'variant' => null ) );
+			return null;
+		}
 
 		if ( !$visitor_id )
 			$visitor_id = $this->visitor_id;
@@ -335,12 +382,17 @@ class ShrimpTest {
 										(`visitor_id`,`experiment_id`,`variant_id`)
 										values ({$visitor_id},{$experiment_id},{$variant})" );
 		}
+		
+		$this->touch_experiment( $experiment_id, array( 'variant' => $variant ) );
+		
 		return $variant;
 	}
 
 	/*
 	 * w_rand: takes an associated array with numerical values and returns a weighted-random key
 	 * Based on code from http://20bits.com/articles/random-weighted-elements-in-php/
+	 *
+	 * required for get_visitor_variant()
 	 */
 	function w_rand($weights) {
 
@@ -361,8 +413,43 @@ class ShrimpTest {
 		}
 	}
 
-	function print_js( ) {
+	/*
+	 * touch_experiment
+	 *
+	 * This function is used to keep track of what experiments were accessed ("touched") througout
+	 * the printing of the current page. This information is not normally printed, but is used to
+	 * produce the ShrimpTest bar (or ShrimpTest component of the Admin Bar) when an admin is
+	 * logged in.
+	 */
+	function touch_experiment( $experiment_id, $args ) {
+		$this->touched_experiments = array_merge_recursive( $this->touched_experiments, array( $experiment_id => $args ) );
+	}
+	/*
+	 * touch_metric: like touch_experiment, but for metrics
+	 */
+	function touch_metric( $metric_id, $args ) {
+		$this->touched_metrics = array_merge_recursive( $this->touched_metrics, array( $metric_id => $args ) );
+	}
+
+	function print_foot( ) {
 		global $wpdb;
+
+		if ( is_user_logged_in( ) && ( !empty( $this->touched_experiments ) || !empty( $this->touched_metrics ) ) ) {
+			if ( !empty( $this->touched_experiments ) ) {
+				echo "<h3>Experiments on this page:</h3>";
+				foreach ( $this->touched_experiments as $experiment_id => $data ) {
+					$variant = ( $this->exempt_user( ) ? "<em>Control (exempt user)</em>" : $data->variant );
+					echo "Experiment {$experiment_id}: variant #{$variant}<br/>";
+				}
+			}
+			if ( !empty( $this->touched_metrics ) ) {
+				echo "<h3>Metrics recorded on this page:</h3>";
+				foreach ( $this->touched_metrics as $metric_id => $data ) {
+					$value = ( $this->exempt_user( ) ? "<em>(exempt user)</em>" : $data->value );
+					echo "Metric {$metric_id}: value = {$value}<br/>";
+				}
+			}
+		}
 
 		// if we already know that they have JS, no need to record again.
 		if ( $wpdb->get_var( "select js from `{$this->db_prefix}visitors` where visitor_id = {$this->visitor_id}" ) )
@@ -391,7 +478,7 @@ setTimeout(function() {
 <?php
 	}
 	
-	function record_js( ) {
+	function record_cookieability( ) {
 		global $wpdb;
 
 		if ( is_null( $this->visitor_id ) )
