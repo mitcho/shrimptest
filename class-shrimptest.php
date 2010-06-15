@@ -393,7 +393,7 @@ class ShrimpTest {
 				return null;
 
 			// use the weighted rand (w_rand) method to get a random variant
-			$variant = $this->w_rand(array_combine($variants, $weights));
+			$variant = $this->w_rand( array_combine( $variants, $weights ) );
 			
 			$wpdb->query( "insert into `{$this->db_prefix}visitors_variants`
 										(`visitor_id`,`experiment_id`,`variant_id`)
@@ -500,7 +500,7 @@ setTimeout(function() {
 <style type="text/css">
 #shrimptest-menu {
 position: fixed; top: 0pt;
-color: #fff; left: 0pt; text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.3);
+color: #fff; left: 0pt;
 }
 #shrimptest-menu li.brand {
 /*cursor: default;*/
@@ -510,40 +510,55 @@ border-left: none;
 list-style: none outside none !important;
 padding: 0;
 margin: 0;
-font: 12px/28px "Lucida Grande","Lucida Sans Unicode",Tahoma,Verdana !important;
+font: 12px/28px "Lucida Grande","Lucida Sans Unicode",Tahoma,Verdana;
 }
 #shrimptest-menu li {
 	margin: 0;
 display: inline;
 display: inline-block;
-background-color: rgb(100, 100, 100);
+background-color: #333;
 border-left: 2px solid rgb(170, 170, 170);
-text-shadow: -1px -1px 2px rgba(0,0,0,0.2);
 cursor: hand;
 cursor: pointer;
 font-weight: bold;
+float: left;
+}
+#shrimptest-menu sup, #shrimptest-menu sub {
+	font-size: 0.7em;
 }
 #shrimptest-menu li a, #shrimptest-menu li span {
 text-decoration: none;
 color: #fff;
 padding: 0 0.75em;
+display: inline-block;
+height: 28px;
+text-shadow: -1px -1px 2px rgba(0,0,0,0.2);
 }
 #shrimptest-menu li:hover {
-background-color: rgb(180, 180, 180);
+	background-color: #666;
 }
 #shrimptest-menu li ul {
+	border: 1px solid #999;
 	display: none;
 }
 #shrimptest-menu li ul li {
-	background-color: #bbb;
+	background-color: #eee;
+	border-left: none;
 }
 #shrimptest-menu li ul li a, #shrimptest-menu li ul li span {
 	min-width: 180px;
 	display: block;
+	color: #333;
+	font-weight: normal;
+	text-shadow: -1px -1px 1px rgba(0,0,0,0.1);
 }
 #shrimptest-menu li:hover ul {
 	display: block;
 	position: absolute;
+}
+
+#shrimptest-menu li ul li:hover {
+	background-color: #ccc;
 }
 
 </style>
@@ -552,12 +567,13 @@ background-color: rgb(180, 180, 180);
 <li class="brand"><a href="<?php echo admin_url('admin.php?page=shrimptest');?>">ShrimpTest</a></li><?php
 	foreach ( $menus as $key => $menu ) {
 
+		echo "<li>";
 		if ( empty( $key ) )
 			$str = "<span>{$menu[0][title]}</span>";
 		else
 			$str = "<a href=\"" . admin_url($key) . "\">{$menu[0][title]}</a>";
-
-		echo "<li>{$str}";
+		echo "{$str}";
+		
 		if ( count($menu) > 1 ) {
 			echo "<ul>";
 			foreach ( $menu as $key => $menuitem ) {
@@ -569,7 +585,7 @@ background-color: rgb(180, 180, 180);
 					$str = "<a href=\"" . admin_url($key) . "\">{$menuitem[title]}</a>";
 				echo "<li>{$str}</li>";
 			}
-			echo "</li>";
+			echo "</ul>";
 		}
 		echo "</li>";
 	}
@@ -763,3 +779,18 @@ background-color: rgb(180, 180, 180);
 	}
 
 } // class ShrimpTest
+
+if ( !function_exists( 'array_combine' ) ) { // for PHP4
+	function array_combine( $a, $b ) {
+		$c = array( );
+	 
+		$a = array_values( $a );
+		$b = array_values( $b );
+	 
+		foreach( $a as $k => $v ) {
+			$c[ $v ] = $b[ $k ];
+		}
+	 
+		return $c;
+	}
+}
