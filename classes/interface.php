@@ -19,7 +19,7 @@ class ShrimpTest_Interface {
 
 		add_action( 'wp_footer', array( &$this, 'do_adminbar' ) );
 		add_filter( 'wpabar_menuitems', array( &$this, 'filter_adminbar' ) );
-		
+				
 	}
 	
 	function admin_menu( ) {
