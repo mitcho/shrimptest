@@ -19,7 +19,7 @@ class ShrimpTest {
 	var $query_vars_parameter = 'shrimptest_query_vars';
 
 	// versioning:	
-	var $db_version = 8; // change to force database schema update
+	var $db_version = 15; // change to force database schema update
 
 	// user agent filtering lists to be populated
 	var $blocklist;
@@ -31,6 +31,9 @@ class ShrimpTest {
 	var $touched_experiments;
 	var $touched_metrics;
 	var $override_variants;
+	
+	var $variant_types;
+	var $metric_types;
 
 	function ShrimpTest( ) {
 		// Hint: run init( ) to get the party started.
@@ -47,6 +50,9 @@ class ShrimpTest {
 		$this->cookie_dough	 = COOKIEHASH;
 		$this->cookie_days   = apply_filters( 'shrimptest_cookie_days', 365 );
 
+		$this->variant_types = array( 'manual' => 'Manual (requires PHP)' );
+		$this->metric_types = array( 'manual' => 'Manual (requires PHP)' );
+
 		add_action( 'init', array( &$this, 'versioning' ) );
 		add_action( 'init', array( &$this, 'check_cookie' ) );
 
@@ -57,6 +63,8 @@ class ShrimpTest {
 		add_action( 'wp_ajax_shrimptest_override_variant', array( &$this, 'override_variant' ) );
 		
 		add_filter( 'wp_headers', array( &$this, 'print_query_headers' ), 10, 2 );
+
+		do_action( 'shrimptest_init', &$this );
 		
 	}
 	
@@ -75,10 +83,10 @@ class ShrimpTest {
 		$r = wp_parse_args( $args, $defaults );
 		
 		$sql = 
-		"select experiment_id, {$this->db_prefix}experiments.name as experiment_name, {$this->db_prefix}metrics.name as metric_name, status, 
+		"select experiment_id, e.name as experiment_name, variants_type, m.name as metric_name, m.type as metric_type, status, 
 		unix_timestamp(start_time) as start_time, unix_timestamp(end_time) as end_time, unix_timestamp(now()) as now
-		from {$this->db_prefix}experiments
-		join {$this->db_prefix}metrics using (`metric_id`)
+		from {$this->db_prefix}experiments as e
+		left join {$this->db_prefix}metrics as m using (`metric_id`)
 		where 1";
 		
 		if ( !empty( $r['experiment_id'] ) )
@@ -144,9 +152,19 @@ class ShrimpTest {
 	 */
 	function get_experiment_variants( $experiment_id ) {
 		global $wpdb;
-		return $wpdb->get_results( "select variant_id, variant_name
+		return $wpdb->get_results( "select variant_id, variant_name, 
 																from `{$this->db_prefix}experiments_variants`
 																where `experiment_id` = {$experiment_id}" );
+	}
+	
+	function get_metric( $metric_id ) {
+		global $wpdb;
+		$metric = $wpdb->get_results( "select metric_id, name, type, data, timestamp
+																from `{$this->db_prefix}metrics`
+																where `metric_id` = {$metric_id}" );
+		if ( isset( $metric->data ) )
+			$metric->data = unserialize( $metric->data );
+		return $metric;
 	}
 	
 	function check_cookie( ) {
@@ -503,11 +521,61 @@ setTimeout(function() {
 			echo "<script type=\"text/javascript\">window.history.back();</script>";
 		exit;
 	}
+
+	function get_reserved_experiment_id( ) {
+		global $wpdb;
+		$wpdb->query( "insert into `{$this->db_prefix}experiments` (`status`) values ('reserved')" );
+		return $wpdb->insert_id;
+	}
+	
+	function get_metric_id( $experiment_id ) {
+		global $wpdb;
+
+		// first, try to see if there's a metric already set for this experiment.
+		// if so, retreive it.
+		if ( isset( $experiment_id ) ) {
+			$metric_id = $wpdb->get_var( "select metric_id from {$this->db_prefix}experiments as e
+join {$this->db_prefix}metrics as m using (metric_id)
+where e.experiment_id = {$experiment_id}" );
+			if ( $metric_id !== null )
+				return $metric_id;
+		}
+		
+		// create a new metric
+		$wpdb->query( "insert into `{$this->db_prefix}metrics` (`type`) values ('manual')" );
+		if ( isset( $experiment_id ) )
+			$wpdb->query( "update {$this->db_prefix}experiments set metric_id = {$wpdb->insert_id} where experiment_id = {$experiment_id}" );
+		return $wpdb->insert_id;
+	}
 	
 	function create_metric() {
 /*		$wpdb->query( "insert into `{$this->db_prefix}metrics`
 							(`visitor_id`,`experiment_id`,`variant_id`)
 							values ({$visitor_id},{$experiment_id},{$variant})" );*/
+	}
+	
+	function get_variant_types_strings( ) {
+		return $this->variant_types;
+	}
+	
+	function register_variant_type( $code, $type_name ) {
+		if ( array_search( $code, array_keys( $this->variant_types ) ) )
+			wp_die( sprintf( "The variant type code <code>%s</code> has already been registered.", $code ) );
+		else
+			$this->variant_types[ $code ] = $type_name;
+		return true;
+	}
+
+	function get_metric_types_strings( ) {
+		return $this->metric_types;
+	}
+	
+	function register_metric_type( $code, $type_name ) {
+		if ( array_search( $code, array_keys( $this->metric_types ) ) )
+			wp_die( sprintf( "The matric type code <code>%s</code> has already been registered.", $code ) );
+		else
+			$this->metric_types[ $code ] = $type_name;
+		return true;
 	}
 	
 	function print_query_headers( $headers, $this_query ) {
@@ -572,6 +640,7 @@ setTimeout(function() {
 							`name` VARCHAR(255) NOT NULL ,
 							`metric_id` INT UNSIGNED NOT NULL ,
 							`status` varchar(30) default 'inactive' ,
+							`variants_type` VARCHAR(255) default 'manual',
 							`start_time` TIMESTAMP NULL ,
 							`end_time` TIMESTAMP NULL ,
 							`timestamp` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -582,6 +651,7 @@ setTimeout(function() {
 								COMMENT 'variant 0 is always \"control\"',
 							`assignment_weight` FLOAT UNSIGNED NOT NULL DEFAULT 1 ,
 							`variant_name` VARCHAR( 255 ) NOT NULL ,
+							`data` LONGTEXT NULL,
 							INDEX ( `experiment_id` )
 						) ENGINE = MYISAM ;",
 						"CREATE TABLE `{$this->db_prefix}visitors_variants` (
@@ -603,8 +673,8 @@ setTimeout(function() {
 						"CREATE TABLE `{$this->db_prefix}metrics` (
 							`metric_id` INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY ,
 							`name` VARCHAR( 255 ) NOT NULL,
-							`type` VARCHAR( 255 ) NOT NULL,
-							`config` LONGTEXT NULL,
+							`type` VARCHAR( 255 ) NOT NULL default 'conversion',
+							`data` LONGTEXT NULL,
 							`timestamp` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 						) ENGINE = MYISAM ");
 		dbDelta( $dbSql );

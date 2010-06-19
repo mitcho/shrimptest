@@ -7,6 +7,12 @@
 class ShrimpTest_Interface {
 
 	var $shrimp;
+	var $variant_types;
+	var $metric_types;
+
+	// message ID's
+	var $message_success = 1;
+	var $message_fail = 2;
 
 	function ShrimpTest_Interface( ) {
 		// Hint: run init( )
@@ -14,7 +20,7 @@ class ShrimpTest_Interface {
 
 	function init( &$shrimptest_instance ) {
 		$this->shrimp = &$shrimptest_instance;
-		
+				
 		add_action( 'admin_menu', array( &$this, 'admin_menu' ) );
 
 		add_action( 'wp_footer', array( &$this, 'do_adminbar' ) );
@@ -28,10 +34,11 @@ class ShrimpTest_Interface {
 		$icon = WP_PLUGIN_URL . '/shrimptest/shrimp.png';
 		$slug = 'shrimptest';
 		$dashboard = add_menu_page( 'ShrimpTest Dashboard', 'ShrimpTest', 'manage_options', $slug, array( &$this, 'admin_dashboard' ), $icon );
-		
-		$settings = add_submenu_page( $slug, 'ShrimpTest Settings', 'Settings', 'manage_options', "{$slug}_settings", array( &$this, 'admin_settings' ) );
 		$experiments = add_submenu_page( $slug, 'ShrimpTest Experiments', 'Experiments', 'manage_options', "{$slug}_experiments", array( &$this, 'admin_experiments' ) );
 		
+		$settings = add_submenu_page( $slug, 'ShrimpTest Settings', 'Settings', 'manage_options', "{$slug}_settings", array( &$this, 'admin_settings' ) );
+		
+		add_action( 'admin_head-'. $experiments, array( &$this, 'admin_new_experiment_redirect' ) );
 		add_action( 'admin_head-'. $dashboard, array( &$this, 'admin_header' ) );
 		add_action( 'admin_head-'. $settings, array( &$this, 'admin_header' ) );
 		add_action( 'admin_head-'. $experiments, array( &$this, 'admin_header' ) );
@@ -44,6 +51,29 @@ class ShrimpTest_Interface {
 		echo "<style type=\"text/css\">
 		#icon-shrimptest {background: url($icon) no-repeat center center}
 		tr.variant td {padding-left: 15px;}
+		table.shrimptest th {
+			width: 100px;
+			font-size: 11px;
+			line-height: 16px;
+		}
+		.samplecodediv {
+			min-width: 300px;
+			float: right;
+			border-left: #dfdfdf 1px solid;
+			padding: 5px;
+			padding-left: 10px;
+		}
+		.samplecodediv h4 {
+			margin-top: 0px;
+		}
+		.samplecode {
+			font-family: monospace;
+			padding: 5px;
+			background: #f6f6f6;
+		}
+		#poststuff .inside {
+			overflow: auto;
+		}
 		</style>
 		<script>
 			jQuery(document).ready(function($) {
@@ -51,8 +81,27 @@ class ShrimpTest_Interface {
 					$(this).siblings('.inside').toggle();
 				});
 			});
-		</script>";
+		</script>";	
 		
+		do_action( 'shrimptest_admin_header' );
+	}
+	
+	function admin_new_experiment_redirect( ) {
+
+		if ( isset( $_REQUEST['submit'] ) ) {
+			$nonce = $_REQUEST['_wpnonce'];
+			if ( !wp_verify_nonce($nonce, 'shrimptest_submit_new_experiment') )
+				wp_die( "That's nonce-ence." );
+			
+			var_dump( $_REQUEST );
+			exit;
+		}
+			
+	
+		if ( isset($_GET['action']) && $_GET['action'] == 'new' && !isset($_GET['id']) ) {
+				$experiment_id = $this->shrimp->get_reserved_experiment_id( );
+				header( 'Location: '.$_SERVER['REQUEST_URI']."&id={$experiment_id}" );
+		}
 	}
 	
 	function admin_dashboard( ) {
@@ -250,4 +299,3 @@ text-shadow: -1px -1px 2px rgba(0,0,0,0.2);
 	}
 
 } // class ShrimpTest_Interface
-

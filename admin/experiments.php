@@ -6,6 +6,11 @@ if ( !class_exists( 'WP' ) )
 if ( !current_user_can('manage_options') )
 	wp_die( __('You do not have sufficient permissions to access this page.') );
 
+if ( isset( $_GET['action'] ) && $_GET['action'] == 'new' ) {
+	include 'experiment-new.php';
+	exit;
+}
+
 if ( isset( $_GET['id'] ) ) {
 	include 'experiment-detail.php';
 	exit;
@@ -18,7 +23,7 @@ register_column_headers($current_screen, array('experiment_id'=>'ID','name'=>'Ex
 
 <div class="wrap">
 <?php screen_icon(); ?>
-<h2><?php _e( 'ShrimpTest Experiments', 'shrimptest' ); ?></h2>
+<h2><?php _e( 'ShrimpTest Experiments', 'shrimptest' ); ?> <a class="button add-new-h2" href="<?php echo admin_url("admin.php?page=shrimptest_experiments&action=new") ?>">Add New</a></h2>
 
 <table class="widefat fixed" cellspacing="0">
 	<thead>
@@ -41,7 +46,7 @@ $date_format = get_option('date_format');
 
 global $shrimp;
 
-$experiments = $shrimp->get_experiments();
+$experiments = $shrimp->get_experiments( array( 'status' => array( 'inactive', 'active', 'finished' ) ) );
 foreach( $experiments as $experiment ) {
 	$stats = $shrimp->get_experiment_stats( $experiment->experiment_id );
 	$total = $stats["total"];
