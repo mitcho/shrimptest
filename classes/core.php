@@ -15,8 +15,6 @@ class ShrimpTest {
 	var $cookie_name;
 	var $cookie_dough;
 	var $cookie_days;
-	var $query_vars_header = 'X-ShrimpTest-Query-Vars';
-	var $query_vars_parameter = 'shrimptest_query_vars';
 
 	// versioning:	
 	var $db_version = 15; // change to force database schema update
@@ -62,8 +60,6 @@ class ShrimpTest {
 
 		add_action( 'wp_ajax_shrimptest_override_variant', array( &$this, 'override_variant' ) );
 		
-		add_filter( 'wp_headers', array( &$this, 'print_query_headers' ), 10, 2 );
-
 		do_action( 'shrimptest_init', &$this );
 		
 	}
@@ -576,29 +572,6 @@ where e.experiment_id = {$experiment_id}" );
 		else
 			$this->metric_types[ $code ] = $type_name;
 		return true;
-	}
-	
-	function print_query_headers( $headers, $this_query ) {
-		if ( isset( $_GET[ $this->query_vars_parameter ] ) )
-			$headers[ $this->query_vars_header ] = serialize( $this_query->query_vars );
-		return $headers;
-	}
-	
-	/*
-	 * retrieve_query_vars
-	 */
-	// Use this function to get serialized query vars for any WordPress 
-	// $this->retrieve_query_vars( 'http://shrimptest.local/2010/06/' )
-	function retrieve_query_vars( $url ) {
-		if ( strpos( $url, '?' ) !== false )
-			$url .= "&{$this->query_vars_parameter}=1";
-		else
-			$url .= "?{$this->query_vars_parameter}=1";
-		$headers = wp_get_http_headers( $url );
-		if ( !isset( $headers[ strtolower( $this->query_vars_header ) ] ) )
-			return false;
-		else
-			return $headers[ strtolower( $this->query_vars_header ) ];
 	}
 	
 	/*
