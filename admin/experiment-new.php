@@ -62,7 +62,8 @@ foreach ( $types as $code => $name ) {
 	if ( empty( $variants ) )
 		$variants = array( (object) array( 'variant_id'=>0 ), (object) array( 'variant_id'=>1 ) );
 ?>
-<tr><th class="autospandown"><?php _e('Names','shrimptest')?>:<br/></th><th><label for="variant[0][name]"><?php _e('Control','shrimptest');?>:</label></th><td><input type="text" name="variant[0][name]" id="variant[0][name]" value="<?php echo $variants[0]->variant_name;?>"></input><input type="button" id="addvariant" value="+"/></td></tr>
+<tr><th></th><th><?php _e('Name','shrimptest');?>:</th><th><?php _e('Assignment weight','shrimptest');?>:</th></tr>
+<tr><th><label for="variant[0][name]"><?php _e('Control','shrimptest');?>:</label> <input type="button" id="addvariant" value="+"/></th><td><input type="text" name="variant[0][name]" id="variant[0][name]" value="<?php echo $variants[0]->variant_name;?>"></input></td><td><input type="text" name="variant[0][assignment_weight]" id="variant[0][assignment_weight]" size="3" value="<?php echo ($variants[0]->assignment_weight || 1);?>"></input></td></tr>
 <?php
 	foreach ( $variants as $variant ) {
 		if ( $variant->variant_id == 0 )
@@ -72,7 +73,7 @@ foreach ( $types as $code => $name ) {
 			$removebutton = "<input type=\"button\" class=\"removevariant\" value=\"-\"/>";
 		else
 			$removebutton = '';
-		echo "<tr><th><label for=\"variant[{$variant->variant_id}][name]\">{$name}:</label></th><td><input type=\"text\" name=\"variant[{$variant->variant_id}][name]\" id=\"variant[{$variant->variant_id}][name]\" value=\"{$variant->variant_name}\"></input>{$removebutton}</td></tr>";
+		echo "<tr><th><label for=\"variant[{$variant->variant_id}][name]\">{$name}:</label> {$removebutton}</th><td><input type=\"text\" name=\"variant[{$variant->variant_id}][name]\" id=\"variant[{$variant->variant_id}][name]\" value=\"{$variant->variant_name}\"></input></td><td><input type=\"text\" name=\"variant[{$variant->variant_id}][assignment_weight]\" id=\"variant[{$variant->variant_id}][assignment_weight]\" value=\"".($variant->assignment_weight || 1)."\" size=\"3\"></input></td></tr>";
 	}
 	echo "<script type=\"text/javascript\">newVariantId = {$variant->variant_id} + 1;</script>";
 ?>
@@ -90,6 +91,7 @@ function shrimptest_metric_metabox( ) {
 		wp_die( sprintf("The metric type code <code>%s</code> is not currently registered. This experiment cannot be edited nor activated.", $experiment->metric_type ) );
 
 ?>
+<input type="hidden" name="metric_id" value="<?php echo $metric_id; ?>"></input>
 <div class="samplecodediv metric_extra metric_extra_manual">
 <h4>Sample code:</h4>
 <p><?php _e("Execute the following code when the visitor's metric value is established:",'shrimptest');?></p>
@@ -187,16 +189,20 @@ jQuery(document).ready(function($){
 	$('#addvariant').click(function(){
 		$('.removevariant').hide();
 		
-		var newRow = $("<tr><th><label></label></th><td><input type=\"text\"></input><input type=\"button\" class=\"removevariant\" value=\"-\"/></td></tr>");
-
+		var newRow = $("<tr><th><label></label> <input type=\"button\" class=\"removevariant\" value=\"-\"/></th><td><input type=\"text\"></input></td><td><input type=\"text\" size=\"3\" value=\"1\"></input></td></tr>");
+		
 		newRow
 			.data('variant',newVariantId)
 			.find('label')
 				.text("<?php _e('Variant','shrimptest')?> "+newVariantId+':')
 				.attr('for','variant['+newVariantId+'][name]')
 			.end()
-			.find('input[type=text]')
-				.attr({id:'variant['+newVariantId+'][name]',name:'variant['+newVariantId+'][name]'});
+			.find('input[type=text]').eq(0)
+				.attr({id:'variant['+newVariantId+'][name]',name:'variant['+newVariantId+'][name]'})
+			.end()
+			.find('input[type=text]').eq(1)
+				.attr({id:'variant['+newVariantId+'][assignment_weight]',name:'variant['+newVariantId+'][assignment_weight]'})
+			.end();
 
 		$('#shrimptest_variants').append(newRow);
 
