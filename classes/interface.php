@@ -9,6 +9,8 @@ class ShrimpTest_Interface {
 	var $shrimp;
 	var $variant_types;
 	var $metric_types;
+	
+	var $slug = 'shrimptest';
 
 	// message ID's
 	var $message_success = 1;
@@ -32,11 +34,9 @@ class ShrimpTest_Interface {
 		// $icon = plugins_url( null, __FILE__ ) . '/shrimp.png';
 		// TODO: fix this:
 		$icon = WP_PLUGIN_URL . '/shrimptest/shrimp.png';
-		$slug = 'shrimptest';
-		$dashboard = add_menu_page( 'ShrimpTest Dashboard', 'ShrimpTest', 'manage_options', $slug, array( &$this, 'admin_dashboard' ), $icon );
-		$experiments = add_submenu_page( $slug, 'ShrimpTest Experiments', 'Experiments', 'manage_options', "{$slug}_experiments", array( &$this, 'admin_experiments' ) );
-		
-		$settings = add_submenu_page( $slug, 'ShrimpTest Settings', 'Settings', 'manage_options', "{$slug}_settings", array( &$this, 'admin_settings' ) );
+		$dashboard = add_menu_page( 'ShrimpTest Dashboard', 'ShrimpTest', 'manage_options', $this->slug, array( &$this, 'admin_dashboard' ), $icon );
+		$experiments = add_submenu_page( $this->slug, 'ShrimpTest Experiments', 'Experiments', 'manage_options', "{$this->slug}_experiments", array( &$this, 'admin_experiments' ) );
+		$settings = add_submenu_page( $this->slug, 'ShrimpTest Settings', 'Settings', 'manage_options', "{$this->slug}_settings", array( &$this, 'admin_settings' ) );
 		
 		add_action( 'admin_head-'. $experiments, array( &$this, 'admin_new_experiment_redirect' ) );
 		add_action( 'admin_head-'. $dashboard, array( &$this, 'admin_header' ) );
@@ -93,7 +93,7 @@ class ShrimpTest_Interface {
 			if ( !wp_verify_nonce($nonce, 'shrimptest_submit_new_experiment') )
 				wp_die( "That's nonce-ence." );
 			
-			var_dump( $_REQUEST );
+			include SHRIMPTEST_DIR . '/admin/experiment-save.php';
 			exit;
 		}
 			
