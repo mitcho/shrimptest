@@ -52,17 +52,18 @@ foreach( $experiments as $experiment ) {
 	$total = $stats["total"];
 
 	$status = $status_strings[$experiment->status];
-	$start_date = date( $date_format, $experiment->start_time );
+	$start_date = ($experiment->start_time ? date( $date_format, $experiment->start_time ) : '');
 	
 	echo "<tr><td>{$experiment->experiment_id}</td><td>{$experiment->experiment_name}</td><td>{$status}</td><td>{$start_date}</td><td>{$experiment->metric_name}</td><td>{$total->N}</td><td>{$total->avg}</td><td>{$total->sd}</td></tr>";
 	
 	foreach ( $stats as $key => $stat ) {
+		$assignment_percentage = round( $stat->assignment_weight / $total->assignment_weight * 1000 ) / 10;
 		if ( $key === 'total' )
 			continue;
 		$name = __("Variant",'shrimptest') . " " . $stat->variant_id;
 		if ($key === 0)
 			$name .= " (" . __("control", 'shrimptest') . ")";
-		echo "<tr class=\"variant\"><td>{$name}</td><td>{$stat->variant_name}</td><td colspan='3'></td><td>{$stat->N}</td><td>{$stat->avg}</td><td>{$stat->sd}</td></tr>";
+		echo "<tr class=\"variant\"><td>{$name}</td><td>{$stat->variant_name} ($assignment_percentage%)</td><td colspan='3'></td><td>{$stat->N}</td><td>{$stat->avg}</td><td>{$stat->sd}</td></tr>";
 	}
 	
 }

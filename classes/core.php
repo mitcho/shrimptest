@@ -17,7 +17,7 @@ class ShrimpTest {
 	var $cookie_days;
 
 	// versioning:	
-	var $db_version = 15; // change to force database schema update
+	var $db_version = 16; // change to force database schema update
 
 	// user agent filtering lists to be populated
 	var $blocklist;
@@ -105,6 +105,12 @@ class ShrimpTest {
 		global $wpdb;
 		return $wpdb->get_var( "select status from {$this->db_prefix}experiments where experiment_id = {$experiment_id}" );
 	}
+
+	function update_experiment_status( $experiment_id, $status ) {
+		global $wpdb;
+		$wpdb->query( $wpdb->prepare( "update {$this->db_prefix}experiments set status = %s where experiment_id = %d",
+																	$status, $experiment_id ) );
+	}
 	
 	function get_experiment_stats( $experiment_id ) {
 		global $wpdb;
@@ -112,17 +118,23 @@ class ShrimpTest {
 		$metric_type = $wpdb->get_var( "select type from {$this->db_prefix}metrics join {$this->db_prefix}experiments using (`metric_id`) where experiment_id = {$experiment_id}" );
 		
 		$metric_id = $wpdb->get_var("select metric_id from {$this->db_prefix}experiments where experiment_id = $experiment_id");
+		$metric = $this->get_metric( $metric_id );
 		
-		if ( $metric_type == 'conversion' )
-			$value = "bit_or(ifnull(vm.value,0))";
-		elseif( $metric_type == 'culmulative' )
-			$value = "sum(ifnull(vm.value,0))";
-		elseif( $metric_type == 'average' )
-			$value = "avg(ifnull(vm.value,0))";
-	
+		$value = "value";
+
+		if ( $metric->data['ifnull'] )
+			$value = "ifnull(value,{$metric->data[nullvalue]})";
+
+		if ( $metric->data['direction'] == 'larger' )
+			$value = "max({$value})";
+		else
+			$value = "min({$value})";
+			
+		$value = apply_filters( 'shrimptest_get_stats_value_' . $metric->type, $value );
+		
 		$unique = "if(cookies = 1, v.visitor_id, concat(ip,user_agent))";
 	
-		$uvsql = "SELECT variant_id, count(distinct variant_id) as variant_count, {$value} as value, {$unique} as unique_visitor_id"
+		$uvsql = "SELECT experiment_id, variant_id, count(distinct variant_id) as variant_count, {$value} as value, {$unique} as unique_visitor_id"
 		       . " FROM `{$this->db_prefix}visitors_variants` as vv "
 		       . " join `{$this->db_prefix}visitors` as v using (`visitor_id`)"
 		       . " left join `{$this->db_prefix}visitors_metrics` as vm"
@@ -134,7 +146,9 @@ class ShrimpTest {
 		$stats = array();
 		$stats['total'] = $wpdb->get_row( $total_sql );
 		
-		$variant_sql = "select variant_id, variant_name, count(unique_visitor_id) as N, avg(value) as avg, stddev(value) as sd from ({$uvsql}) as uv join {$this->db_prefix}experiments_variants using (variant_id) group by variant_id order by variant_id asc";
+		$stats['total']->assignment_weight = $wpdb->get_var( $wpdb->prepare( "select sum(assignment_weight) from {$this->db_prefix}experiments_variants where experiment_id = %d", $experiment_id ) );
+		
+		$variant_sql = "select ev.variant_id, variant_name, assignment_weight, count(unique_visitor_id) as N, avg(value) as avg, stddev(value) as sd from {$this->db_prefix}experiments_variants as ev left join ({$uvsql}) as uv on (ev.experiment_id = uv.experiment_id and ev.variant_id = uv.variant_id) where ev.experiment_id = {$experiment_id} group by variant_id order by variant_id asc";
 		$variant_stats = $wpdb->get_results( $variant_sql );
 		foreach ( $variant_stats as $variant ) {
 			$stats[$variant->variant_id] = $variant;
@@ -153,14 +167,66 @@ class ShrimpTest {
 																where `experiment_id` = {$experiment_id}" );
 	}
 	
+	function update_experiment( $experiment_id, $experiment_data ) {
+		global $wpdb;
+
+		// update shrimptest_experimensts
+		extract( $experiment_data );
+		$wpdb->query( $wpdb->prepare( "update {$this->db_prefix}experiments "
+																	. "set name = %s, variants_type = %s, metric_id = %d "
+																	. "where experiment_id = %d",
+																	$name, $variants_type, $metric_id, $experiment_id ) );
+
+		// update shrimptest_experiments_variants		
+		foreach ( $variants as $variant_id => $variant_data ) {
+			extract( $variant_data );
+			unset( $variant_data['name'], $variant_data['assignment_weight'] );
+			$data = '';
+			if ( !empty( $variant_data ) )
+				$data = serialize( $variant_data );
+			$wpdb->query( $wpdb->prepare( "insert into {$this->db_prefix}experiments_variants "
+																		. "(experiment_id, variant_id, variant_name, assignment_weight, data) "
+																		. "values (%d, %d, %s, %d, %s) "
+																		. "on duplicate key update variant_name = %s, assignment_weight = %d, data = %s",
+																		$experiment_id, $variant_id, $name, $assignment_weight, $data,
+																		$name, $assignment_weight, $data ) );
+		}
+		$variant_count = count( $variants );
+		$wpdb->query( $wpdb->prepare( "delete from {$this->db_prefix}experiments_variants "
+																	. "where experiment_id = %d and variant_id >= %d",
+																	$experiment_id, $variant_count ) );
+		
+		if ( true ) // TODO: if enough information
+			$this->update_experiment_status( $experiment_id, 'inactive' );
+	}
+	
 	function get_metric( $metric_id ) {
 		global $wpdb;
-		$metric = $wpdb->get_results( "select metric_id, name, type, data, timestamp
+		$metric = $wpdb->get_row( "select metric_id, name, type, data, timestamp
 																from `{$this->db_prefix}metrics`
 																where `metric_id` = {$metric_id}" );
 		if ( isset( $metric->data ) )
 			$metric->data = unserialize( $metric->data );
 		return $metric;
+	}
+	
+	function update_metric( $metric_id, $metric_data ) {
+		global $wpdb;
+
+		// data validation
+		if ( !isset( $metric_data['ifnull'] ) || !isset( $metric_data['nullvalue'] )
+		                                      || !isset( $metric_data['direction'] ) )
+			wp_die( 'Metric data must include <code>ifnull</code>, <code>nullvalue</code>, and <code>direction</code> values.' );
+
+		extract( $metric_data );
+		unset( $metric_data['name'], $metric_data['type'] );
+		$data = '';
+		if ( !empty( $metric_data ) )
+			$data = serialize( $metric_data );
+		$wpdb->query( $wpdb->prepare( "update {$this->db_prefix}metrics "
+																	. "set name = %s, type = %s, data = %s "
+																	. "where metric_id = %d",
+																	$name, $type, $data, $metric_id ) );		
 	}
 	
 	function check_cookie( ) {
@@ -420,7 +486,7 @@ class ShrimpTest {
 	 * logged in.
 	 */
 	function touch_experiment( $experiment_id, $args ) {
-		if ( !isset( $this->touched_experiments[$experiment_id] ) )
+		if ( !is_array( $this->touched_experiments[$experiment_id] ) )
 			$this->touched_experiments[$experiment_id] = array();
 		$this->touched_experiments[$experiment_id] = array_merge_recursive( $this->touched_experiments[$experiment_id], $args );
 	}
@@ -431,6 +497,8 @@ class ShrimpTest {
 	 * touch_metric: like touch_experiment, but for metrics
 	 */
 	function touch_metric( $metric_id, $args ) {
+		if ( !is_array( $this->touched_metrics ) )
+			$this->touched_metrics = array();
 		$this->touched_metrics = array_merge_recursive( $this->touched_metrics, array( $metric_id => $args ) );
 	}
 	function get_touched_metrics( ) {
@@ -625,7 +693,7 @@ where e.experiment_id = {$experiment_id}" );
 							`assignment_weight` FLOAT UNSIGNED NOT NULL DEFAULT 1 ,
 							`variant_name` VARCHAR( 255 ) NOT NULL ,
 							`data` LONGTEXT NULL,
-							INDEX ( `experiment_id` )
+							PRIMARY KEY (`experiment_id`,`variant_id`)
 						) ENGINE = MYISAM ;",
 						"CREATE TABLE `{$this->db_prefix}visitors_variants` (
 							`visitor_id` BIGINT(20) NOT NULL ,
