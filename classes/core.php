@@ -209,6 +209,40 @@ class ShrimpTest {
 			$metric->data = unserialize( $metric->data );
 		return $metric;
 	}
+
+	function get_metrics( $args = array() ) {
+		global $wpdb;
+		$defaults = array(
+			'type' => '',
+			'offset' => 0,
+			'orderby' => 'metric_id',
+			'order' => 'ASC',
+		);
+		$r = wp_parse_args( $args, $defaults );
+		$sql = "select metric_id, name, type, data, timestamp "
+					. "from `{$this->db_prefix}metrics` "
+					. "where 1 ";
+
+		if ( !empty( $r['metric_id'] ) ) {
+			if ( !is_array( $r['metric_id'] ) )
+				$r['metric_id'] = array( $r['metric_id'] );
+			$sql .= "and metric_id in ('".join("','",$r['metric_id'])."') ";
+		}
+
+		if ( !empty( $r['type'] ) ) {
+			if ( !is_array( $r['type'] ) )
+				$r['type'] = array( $r['type'] );
+			$sql .= "and type in ('".join("','",$r['type'])."') ";
+		}
+
+		$metrics = $wpdb->get_results( $sql );
+		foreach ( array_keys( $metrics ) as $key ) {
+			if ( isset( $metrics[$key]->data ) )
+				$metrics[$key]->data = unserialize( $metrics[$key]->data );
+		}
+		
+		return $metrics;
+	}
 	
 	function update_metric( $metric_id, $metric_data ) {
 		global $wpdb;
