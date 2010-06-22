@@ -11,7 +11,9 @@ add_action( 'shrimptest_admin_header', 'shrimptest_metric_conversion_script_and_
 // add_filter( 'shrimptest_get_stats_value_conversion' )
 add_filter( 'shrimptest_save_metric_conversion', 'shrimptest_metric_conversion_save_filter' );
 
-// Utility function
+add_action( 'parse_request', 'shrimptest_metric_conversion_check_conversion' );
+
+// Utility function for post query vars retreival
 add_filter( 'wp_headers', 'shrimptest_metric_conversion_print_query_headers', 10, 2 );
 
 function shrimptest_metric_conversion_init( $shrimp ) {
@@ -65,16 +67,6 @@ function shrimptest_metric_conversion_save_filter( $metric_data ) {
 	if ( stripos( $url, site_url() ) !== 0 )
 		wp_die( __( 'The specified conversion URL is not part of your WordPress site. Please go back and enter another.', 'shrimptest' ) );
 
-	// first try the post ID method. will work if this URL is_single.
-	$post_ID = url_to_postid( $url );
-	if ( $post_ID ) {
-		$title = get_the_title($post_ID);
-		$metric_data['name'] = sprintf( __("Conversion: %s (%s)",'shrimptest'), $title, $url );
-		$metric_data['conversion_post_ID'] = $post_ID;
-		return $metric_data;
-	}
-	
-	// next let's try to store the URL's query vars array.
 	$query_vars = shrimptest_metric_conversion_retrieve_query_vars( $url );
 	if ( $query_vars ) {
 		// reconstruct the appropriate title, right here, right now.
@@ -84,12 +76,38 @@ function shrimptest_metric_conversion_save_filter( $metric_data ) {
 		$title = preg_replace( '/^\s*\|?\s*(.*?)\s*\|?\s*$/', '$1', $title );
 		$metric_data['name'] = sprintf( __("Conversion: %s (%s)",'shrimptest'), $title, $url );
 		$metric_data['conversion_query_vars'] = $query_vars;
+
+		// reset the conversion rules cache
+		set_site_transient( 'shrimptest_metric_conversion_conversion_rules', null );
+
 		return $metric_data;
 	}
 
 	// else, we have to kick it back to the user saying we couldn't resolve that URL.
 	wp_die( __( 'The specified conversion URL is not part of your WordPress site. Please go back and enter another.', 'shrimptest' ) );
 
+}
+
+function shrimptest_metric_conversion_check_conversion( $parsed_query ) {
+	$rules = shrimptest_metric_conversion_get_conversion_rules( );
+	foreach ( $rules as $metric_id => $query_vars ) {
+		if ( $parsed_query->query_vars == $query_vars ) {
+			shrimptest_conversion_success( $metric_id );
+		}
+	}
+}
+
+function shrimptest_metric_conversion_get_conversion_rules( ) {
+	global $shrimp;
+	$rules = get_site_transient( 'shrimptest_metric_conversion_conversion_rules' );
+	if ( !$rules || empty( $rules ) ) {
+		foreach ( $shrimp->get_metrics( array( 'type' => 'conversion' ) ) as $metric ) {
+			if ( isset( $metric->data['conversion_query_vars'] ) )
+				$rules[ $metric->metric_id ] = $metric->data['conversion_query_vars'];
+		}
+		set_site_transient( 'shrimptest_metric_conversion_conversion_rules', $rules );
+	}
+	return $rules;
 }
 
 function shrimptest_metric_conversion_print_query_headers( $headers, $this_query ) {
