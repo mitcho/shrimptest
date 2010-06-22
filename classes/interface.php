@@ -89,7 +89,7 @@ class ShrimpTest_Interface {
 	function admin_new_experiment_redirect( ) {
 
 		if ( $_GET['page'] != "{$this->slug}_experiments" )
-			continue;
+			return;
 
 		if ( isset( $_REQUEST['submit'] ) ) {
 			$nonce = $_REQUEST['_wpnonce'];
