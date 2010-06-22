@@ -38,7 +38,7 @@ class ShrimpTest_Interface {
 		$experiments = add_submenu_page( $this->slug, 'ShrimpTest Experiments', 'Experiments', 'manage_options', "{$this->slug}_experiments", array( &$this, 'admin_experiments' ) );
 		$settings = add_submenu_page( $this->slug, 'ShrimpTest Settings', 'Settings', 'manage_options', "{$this->slug}_settings", array( &$this, 'admin_settings' ) );
 		
-		add_action( 'admin_head-'. $experiments, array( &$this, 'admin_new_experiment_redirect' ) );
+		add_action( 'admin_init', array( &$this, 'admin_new_experiment_redirect' ) );
 		add_action( 'admin_head-'. $dashboard, array( &$this, 'admin_header' ) );
 		add_action( 'admin_head-'. $settings, array( &$this, 'admin_header' ) );
 		add_action( 'admin_head-'. $experiments, array( &$this, 'admin_header' ) );
@@ -88,6 +88,9 @@ class ShrimpTest_Interface {
 	
 	function admin_new_experiment_redirect( ) {
 
+		if ( $_GET['page'] != "{$this->slug}_experiments" )
+			continue;
+
 		if ( isset( $_REQUEST['submit'] ) ) {
 			$nonce = $_REQUEST['_wpnonce'];
 			if ( !wp_verify_nonce($nonce, 'shrimptest_submit_new_experiment') )
@@ -96,11 +99,11 @@ class ShrimpTest_Interface {
 			include SHRIMPTEST_DIR . '/admin/experiment-save.php';
 			exit;
 		}
-			
-	
+		
 		if ( isset($_GET['action']) && $_GET['action'] == 'new' && !isset($_GET['id']) ) {
-				$experiment_id = $this->shrimp->get_reserved_experiment_id( );
-				header( 'Location: '.$_SERVER['REQUEST_URI']."&id={$experiment_id}" );
+			$experiment_id = $this->shrimp->get_reserved_experiment_id( );
+			wp_redirect( $_SERVER['REQUEST_URI']."&id={$experiment_id}" );
+			exit;
 		}
 	}
 	
