@@ -1,3 +1,7 @@
+
+Warning: Unknown: It is not safe to rely on the system's timezone settings. You are *required* to use the date.timezone setting or the date_default_timezone_set() function. In case you used any of those methods and you are still getting this warning, you most likely misspelled the timezone identifier. We selected 'America/New_York' for 'EDT/-4.0/DST' instead in /Users/mitcho/shrimptest/create-blocklist.php on line 47
+
+Deprecated: Call-time pass-by-reference has been deprecated in /Users/mitcho/shrimptest/create-blocklist.php on line 47
 <?php
 /*
  * USER AGENT BLOCKLIST
@@ -2148,7 +2152,10 @@ $blocklist = array(
 	"Zscho.de Crawler/Nutch-1.0-Zscho.de-semantic_patch (Zscho.de Crawler",
 	"zspider/0.9-dev http://feedback.redkolibri.com/",
 	"ZyBorg/1.0 (ZyBorg@WISEnut.com; http://www.WISEnut.com)",
-	"Mozilla/5.0 (en-US)"
+	"Mozilla/5.0 (Windows; U; Windows NT 5.1; de; rv:1.9.2.3) Gecko/20100401 Firefox/3.6.3 (FM Scene 4.6.1)",
+	"Mozilla/5.0 (Windows; U; Windows NT 5.1; de; rv:1.9.2.3) Gecko/20100401 Firefox/3.6.3 (.NET CLR 3.5.30729) (Prevx 3.0.5)",
+	"Mozilla/5.0 (en-US)",
+	"Automattic/VaultPress/0.1"
 );
 $blockterms = array(
 	"BotLink",
