@@ -26,7 +26,7 @@ function shrimptest_metric_conversion_extra( $metric ) {
 		$value = $metric->data->conversion_url;
 	} else {
 		$class = 'default';
-		$value = site_url();
+		$value = get_bloginfo( 'url' );
 	}
 // all <tr>'s here must have the class 'metric_extra metric_extra_conversion'
 ?>
@@ -64,7 +64,7 @@ function shrimptest_metric_conversion_save_filter( $metric_data ) {
 	$url = $metric_data['conversion_url'];
 	if ( empty( $url ) )
 		wp_die( __( 'No conversion URL was specified.', 'shrimptest' ) );
-	if ( stripos( $url, site_url() ) !== 0 )
+	if ( stripos( $url, get_bloginfo( 'url' ) ) !== 0 )
 		wp_die( __( 'The specified conversion URL is not part of your WordPress site. Please go back and enter another.', 'shrimptest' ) );
 
 	$query_vars = shrimptest_metric_conversion_retrieve_query_vars( $url );
@@ -101,6 +101,7 @@ function shrimptest_metric_conversion_get_conversion_rules( ) {
 	global $shrimp;
 	$rules = get_site_transient( 'shrimptest_metric_conversion_conversion_rules' );
 	if ( !$rules || empty( $rules ) ) {
+		$rules = array();
 		foreach ( $shrimp->get_metrics( array( 'type' => 'conversion' ) ) as $metric ) {
 			if ( isset( $metric->data['conversion_query_vars'] ) )
 				$rules[ $metric->metric_id ] = $metric->data['conversion_query_vars'];
