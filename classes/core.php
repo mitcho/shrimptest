@@ -48,9 +48,6 @@ class ShrimpTest {
 		$this->cookie_dough	 = COOKIEHASH;
 		$this->cookie_days   = apply_filters( 'shrimptest_cookie_days', 365 );
 
-		$this->variant_types = array( 'manual' => 'Manual (requires PHP)' );
-		$this->metric_types = array( 'manual' => 'Manual (requires PHP)' );
-
 		add_action( 'init', array( &$this, 'versioning' ) );
 		add_action( 'init', array( &$this, 'check_cookie' ) );
 
@@ -58,10 +55,37 @@ class ShrimpTest {
 		add_action( 'wp_ajax_shrimptest_record', array( &$this, 'record_cookieability' ) );
 		add_action( 'wp_ajax_nopriv_shrimptest_record', array( &$this, 'record_cookieability' ) );
 
+		$this->load_plugins( );
+
 		add_action( 'wp_ajax_shrimptest_override_variant', array( &$this, 'override_variant' ) );
 		
 		do_action( 'shrimptest_init', &$this );
 		
+	}
+	
+	function load_plugins( ) {
+		$this->metric_types = array();
+		$this->variant_types = array();
+		foreach ( glob( SHRIMPTEST_DIR . '/plugins/*.php' ) as $plugin ) {
+			include_once $plugin;
+
+			$object = new $export_class;
+
+			if ( stripos( $export_class, 'variant' ) ) {
+				if ( array_search( $object->code, array_keys( $this->variant_types ) ) )
+					wp_die( sprintf( "The variant type code <code>%s</code> has already been registered.", $code ) );
+				$this->variant_types[] =& $object;
+			}
+
+			if ( stripos( $export_class, 'metric' ) ) {
+				if ( array_search( $object->code, array_keys( $this->metric_types ) ) )
+					wp_die( sprintf( "The metric type code <code>%s</code> has already been registered.", $code ) );
+				$this->metric_types[] =& $object;
+			}
+			
+			$object->init( &$this );
+
+		}
 	}
 	
 	function get_active_experiments( ) {
@@ -653,27 +677,19 @@ where e.experiment_id = {$experiment_id}" );
 	}
 	
 	function get_variant_types_strings( ) {
-		return $this->variant_types;
+		$strings = array( 'manual' => __('Manual (requires PHP)', 'shrimptest' ) );
+		foreach ( $this->variant_types as $variant ) {
+			$strings[ $variant->code ] = $variant->name;
+		}
+		return $strings;
 	}
 	
-	function register_variant_type( $code, $type_name ) {
-		if ( array_search( $code, array_keys( $this->variant_types ) ) )
-			wp_die( sprintf( "The variant type code <code>%s</code> has already been registered.", $code ) );
-		else
-			$this->variant_types[ $code ] = $type_name;
-		return true;
-	}
-
 	function get_metric_types_strings( ) {
-		return $this->metric_types;
-	}
-	
-	function register_metric_type( $code, $type_name ) {
-		if ( array_search( $code, array_keys( $this->metric_types ) ) )
-			wp_die( sprintf( "The matric type code <code>%s</code> has already been registered.", $code ) );
-		else
-			$this->metric_types[ $code ] = $type_name;
-		return true;
+		$strings = array( 'manual' => __('Manual (requires PHP)', 'shrimptest' ) );
+		foreach ( $this->metric_types as $metric ) {
+			$strings[ $metric->code ] = $metric->name;
+		}
+		return $strings;
 	}
 	
 	/*

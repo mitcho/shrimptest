@@ -12,12 +12,6 @@ define( 'SHRIMPTEST_DIR', dirname( __FILE__ ) );
 
 define( 'SHRIMPTEST_VERSION', '0.1' );
 
-/*
- * Load plugins
- */
-// TODO: load everything in plugins dynamically
-require_once SHRIMPTEST_DIR . '/plugins/metric-conversion.php';
-
 require_once SHRIMPTEST_DIR . '/classes/core.php'; // holds the ShrimpTest class
 if ( !defined( 'SHRIMPTEST_CLASS' ) )
 	define( 'SHRIMPTEST_CLASS', 'ShrimpTest' );
