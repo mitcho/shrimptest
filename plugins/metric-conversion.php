@@ -103,7 +103,7 @@ class ShrimpTest_Metric_Conversion {
 			query_posts( $query_vars );
 			$title = wp_title( '|', false, 'right' );
 			$title = preg_replace( '/^\s*\|?\s*(.*?)\s*\|?\s*$/', '$1', $title );
-			$metric_data['name'] = sprintf( __("Conversion: %s (%s)",'shrimptest'), $title, $url );
+			$metric_data['name'] = sprintf( __("Conversion: <a href=\"%s\">%s</a>",'shrimptest'), $url, $title );
 			$metric_data['conversion_query_vars'] = $query_vars;
 	
 			// reset the conversion rules cache
