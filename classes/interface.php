@@ -242,7 +242,6 @@ text-shadow: -1px -1px 2px rgba(0,0,0,0.2);
 			foreach( $touched_experiments as $experiment_id => $data ) {
 				$experiment = $this->shrimp->get_experiment( $experiment_id );
 				// TODO: display experiment name
-				echo $experiment->status;
 				$experiments["admin.php?page=shrimptest_experiments&id={$experiment_id}"] = array( 'id'=>$experiment_id, 'title'=>"Experiment {$experiment_id}: {$experiment->name} <small>(status: {$experiment->status})</small>", 'custom'=>false );
 				
 				// display each of the variants

@@ -3,34 +3,25 @@
 // $export_class is the name of the class.
 $export_class = 'ShrimpTest_Metric_Conversion';
 
-// call init on init
-// call shrimptest_init later
-//		add_action( 'shrimptest_init', 'shrimptest_metric_conversion_init', 10, 1 );
-
 /*
  * class ShrimpTest_Metric_Conversion
  */
 
 class ShrimpTest_Metric_Conversion {
 	
-	var $code = 'conversion'; // this code is what the metric type is registered as internally.
-	var $name = 'Conversion';
+	var $code = 'shortcode'; // this code is what the metric type is registered as internally.
+	var $name = 'Shortcode';
+	var $shortcode = 'ab';
 	
-	// variables used for the query_vars-retreiving code to get a more stable representation for
-	// detecting conversion hits.
-	var $query_vars_header = 'X-ShrimpTest-Query-Vars';
-	var $query_vars_parameter = 'shrimptest_query_vars';
-
-	var $shrimp;	
-	var $prefix = 'shrimptest_metric_conversion_';
+	var $shrimp;
 	
 	function ShrimpTest_Metric_Conversion( ) {
 		// run init.
 	}
 	
-	function init( ) {
+	function init( $shrimptest_instance ) {
 
-		add_action( 'shrimptest_init', array( &$this, 'shrimptest_init' ), 10, 1 );
+		$this->shrimp =& $shrimptest_instance;
 
 		add_action( 'shrimptest_add_metric_extra', array( &$this, 'admin_add_metric_extra' ), 10, 1 );
 		add_action( 'shrimptest_admin_header', array( &$this, 'admin_script_and_style' ) );
@@ -43,10 +34,6 @@ class ShrimpTest_Metric_Conversion {
 		
 		// Utility function for post query vars retreival
 		add_filter( 'wp_headers', array( &$this, 'print_query_headers' ), 10, 2 );
-	}
-	
-	function shrimptest_init( $shrimptest_instance ) {
-		$this->shrimp =& $shrimptest_instance;
 	}
 
 	function admin_add_metric_extra( $metric ) {
