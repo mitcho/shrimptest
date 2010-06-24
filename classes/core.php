@@ -71,19 +71,19 @@ class ShrimpTest {
 
 			$object = new $export_class;
 
+			$object->init( &$this );
+			
 			if ( stripos( $export_class, 'variant' ) ) {
 				if ( array_search( $object->code, array_keys( $this->variant_types ) ) )
 					wp_die( sprintf( "The variant type code <code>%s</code> has already been registered.", $code ) );
-				$this->variant_types[] =& $object;
+				$this->variant_types[] = $object;
 			}
 
 			if ( stripos( $export_class, 'metric' ) ) {
 				if ( array_search( $object->code, array_keys( $this->metric_types ) ) )
 					wp_die( sprintf( "The metric type code <code>%s</code> has already been registered.", $code ) );
-				$this->metric_types[] =& $object;
+				$this->metric_types[] = $object;
 			}
-			
-			$object->init( &$this );
 
 		}
 	}
