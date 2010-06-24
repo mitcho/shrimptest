@@ -9,11 +9,16 @@ $export_class = 'ShrimpTest_Metric_Conversion';
 
 class ShrimpTest_Metric_Conversion {
 	
-	var $code = 'shortcode'; // this code is what the metric type is registered as internally.
-	var $name = 'Shortcode';
-	var $shortcode = 'ab';
+	var $code = 'conversion'; // this code is what the metric type is registered as internally.
+	var $name = 'Conversion';
 	
-	var $shrimp;
+	// variables used for the query_vars-retreiving code to get a more stable representation for
+	// detecting conversion hits.
+	var $query_vars_header = 'X-ShrimpTest-Query-Vars';
+	var $query_vars_parameter = 'shrimptest_query_vars';
+
+	var $shrimp;	
+	var $prefix = 'shrimptest_metric_conversion_';
 	
 	function ShrimpTest_Metric_Conversion( ) {
 		// run init.
