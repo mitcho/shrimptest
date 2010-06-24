@@ -124,6 +124,11 @@ class ShrimpTest {
 
 		return $wpdb->get_results( $sql );
 	}
+
+	function get_experiment( $experiment_id ) {
+		global $wpdb;
+		return $wpdb->get_row( "select * from {$this->db_prefix}experiments where experiment_id = {$experiment_id}" );
+	}
 	
 	function get_experiment_status( $experiment_id ) {
 		global $wpdb;
@@ -186,7 +191,7 @@ class ShrimpTest {
 	 */
 	function get_experiment_variants( $experiment_id ) {
 		global $wpdb;
-		return $wpdb->get_results( "select variant_id, variant_name, 
+		return $wpdb->get_results( "select variant_id, variant_name 
 																from `{$this->db_prefix}experiments_variants`
 																where `experiment_id` = {$experiment_id}" );
 	}

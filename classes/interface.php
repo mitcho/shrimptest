@@ -185,7 +185,7 @@ text-shadow: -1px -1px 2px rgba(0,0,0,0.2);
 	border-left: none;
 }
 #shrimptest-menu li ul li a, #shrimptest-menu li ul li span {
-	min-width: 180px;
+	min-width: 220px;
 	display: block;
 	color: #333;
 	font-weight: normal;
@@ -240,9 +240,10 @@ text-shadow: -1px -1px 2px rgba(0,0,0,0.2);
 			$experiments = array( array( 'id'=>'20', 'title'=>'<sup>A</sup>/<sub>B</sub>', 'custom'=>false ) );
 
 			foreach( $touched_experiments as $experiment_id => $data ) {
-				$status = $this->shrimp->get_experiment_status( $experiment_id );
+				$experiment = $this->shrimp->get_experiment( $experiment_id );
 				// TODO: display experiment name
-				$experiments["admin.php?page=shrimptest_experiments&id={$experiment_id}"] = array( 'id'=>$experiment_id, 'title'=>"Experiment {$experiment_id} <small>(status: {$status})</small>", 'custom'=>false );
+				echo $experiment->status;
+				$experiments["admin.php?page=shrimptest_experiments&id={$experiment_id}"] = array( 'id'=>$experiment_id, 'title'=>"Experiment {$experiment_id}: {$experiment->name} <small>(status: {$experiment->status})</small>", 'custom'=>false );
 				
 				// display each of the variants
 				foreach ( $this->shrimp->get_experiment_variants( $experiment_id ) as $variant ) {
