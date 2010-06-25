@@ -201,6 +201,16 @@ class ShrimpTest {
 		return $results;
 	}
 	
+	function get_experiment_variant( $experiment_id, $variant_id ) {
+		global $wpdb;
+		$variant = $wpdb->get_row( "select variant_id, variant_name, assignment_weight, data 
+																from `{$this->db_prefix}experiments_variants`
+																where `experiment_id` = {$experiment_id} and `variant_id` = {$variant_id}" );
+		if ( isset( $variant->data ) )
+			$variant->data = unserialize( $variant->data );
+		return $variant;
+	}
+	
 	function update_experiment( $experiment_id, $experiment_data ) {
 		global $wpdb;
 
@@ -478,7 +488,7 @@ class ShrimpTest {
 		// If the user is exempt (like a logged in admin), check if they've overridden the variant.
 		// If not, it will return null for control.
 		if ( $this->exempt_user( ) ) {
-			$variant = $this->get_override_variant( $experiment_id );
+			$variant = (int) $this->get_override_variant( $experiment_id );
 			$this->touch_experiment( $experiment_id, array( 'variant' => $variant ) );
 			return $variant;
 		}
@@ -525,7 +535,11 @@ class ShrimpTest {
 		get_currentuserinfo();
 		if ( !isset( $this->override_variants ) )
 			$this->override_variants = get_user_meta( $user_ID, "shrimptest_override_variants", true );
-		return $this->override_variants[$experiment_id] || 0;
+
+		if ($this->override_variants[$experiment_id])
+			return (int) $this->override_variants[$experiment_id];
+		else
+			return 0; // control
 	}
 
 	/*
@@ -652,6 +666,7 @@ setTimeout(function() {
 		$experiment_id = (int) $_REQUEST["experiment_id"];
 		$variant_id = (int) $_REQUEST["variant_id"];
 		
+		$this->override_variants = get_user_meta( $user_ID, "shrimptest_override_variants", true );
 		$this->override_variants[$experiment_id] = $variant_id;
 		update_user_meta( $user_ID, "shrimptest_override_variants", $this->override_variants );
 
