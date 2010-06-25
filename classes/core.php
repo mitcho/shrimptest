@@ -191,9 +191,14 @@ class ShrimpTest {
 	 */
 	function get_experiment_variants( $experiment_id ) {
 		global $wpdb;
-		return $wpdb->get_results( "select variant_id, variant_name 
+		$results = $wpdb->get_results( "select variant_id, variant_name, assignment_weight, data 
 																from `{$this->db_prefix}experiments_variants`
 																where `experiment_id` = {$experiment_id}" );
+		foreach ( $results as $key => $variant ) {
+			if ( isset( $results[$key]->data ) )
+				$results[$key]->data = unserialize( $results[$key]->data );
+		}
+		return $results;
 	}
 	
 	function update_experiment( $experiment_id, $experiment_data ) {
@@ -207,19 +212,8 @@ class ShrimpTest {
 																	$name, $variants_type, $metric_id, $experiment_id ) );
 
 		// update shrimptest_experiments_variants		
-		foreach ( $variants as $variant_id => $variant_data ) {
-			extract( $variant_data );
-			unset( $variant_data['name'], $variant_data['assignment_weight'] );
-			$data = '';
-			if ( !empty( $variant_data ) )
-				$data = serialize( $variant_data );
-			$wpdb->query( $wpdb->prepare( "insert into {$this->db_prefix}experiments_variants "
-																		. "(experiment_id, variant_id, variant_name, assignment_weight, data) "
-																		. "values (%d, %d, %s, %d, %s) "
-																		. "on duplicate key update variant_name = %s, assignment_weight = %d, data = %s",
-																		$experiment_id, $variant_id, $name, $assignment_weight, $data,
-																		$name, $assignment_weight, $data ) );
-		}
+		foreach ( $variants as $variant_id => $variant_data )
+			$this->update_experiment_variant( $experiment_id, $variant_id, $variant_data );
 		$variant_count = count( $variants );
 		$wpdb->query( $wpdb->prepare( "delete from {$this->db_prefix}experiments_variants "
 																	. "where experiment_id = %d and variant_id >= %d",
@@ -227,6 +221,25 @@ class ShrimpTest {
 		
 		if ( true ) // TODO: if enough information
 			$this->update_experiment_status( $experiment_id, 'inactive' );
+	}
+	
+	function update_experiment_variant( $experiment_id, $variant_id, $variant_data ) {
+		global $wpdb;
+
+		extract( $variant_data );
+		if ( !isset( $name ) || !isset( $assignment_weight ) || empty( $assignment_weight ) )
+			wp_die( 'The variant must have a <code>name</code> and a non-zero <code>assignment_weight</code>' );
+		
+		unset( $variant_data['name'], $variant_data['assignment_weight'] );
+		$data = '';
+		if ( !empty( $variant_data ) )
+			$data = serialize( $variant_data );
+		$wpdb->query( $wpdb->prepare( "insert into {$this->db_prefix}experiments_variants "
+																	. "(experiment_id, variant_id, variant_name, assignment_weight, data) "
+																	. "values (%d, %d, %s, %d, %s) "
+																	. "on duplicate key update variant_name = %s, assignment_weight = %d, data = %s",
+																	$experiment_id, $variant_id, $name, $assignment_weight, $data,
+																	$name, $assignment_weight, $data ) );
 	}
 	
 	function get_metric( $metric_id ) {
