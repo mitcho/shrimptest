@@ -58,6 +58,8 @@ foreach ( $types as $code => $type ) {
 ?>
 </select></td></tr>
 <?php
+do_action( 'shrimptest_add_variant_extra', $variant, $experiment );
+
 	$variants = $shrimp->get_experiment_variants( $experiment->experiment_id );
 	if ( empty( $variants ) )
 		$variants = array( (object) array( 'variant_id'=>0 ), (object) array( 'variant_id'=>1 ) );
@@ -106,11 +108,11 @@ foreach ( $types as $code => $type ) {
 }
 ?>
 </select></td></tr>
-<tr class="metric_extra metric_extra_manual"><th><?php _e('Direction','shrimptest');?>:</th><td><?php echo sprintf(__("%s are better.",'shrimptest'), '<select name="metric[manual][direction]" id="metric_extra_manual_direction"><option value="larger">'.__('Larger values','shrimptest').'</option><option value="smaller">'.__('Smaller values','shrimptest').'</option></select>');?></td></tr>
-<tr class="metric_extra metric_extra_manual"><th>Default value:</th><td><input id="metric_extra_manual_ifnull" name="metric[manual][ifnull]" type="checkbox" checked="checked"/> <label for="metric_extra_manual_ifnull"><?php echo sprintf(__("Assume value of %s for visitors who have not triggered an explicit metric update.",'shrimptest'), '</label><input name="metric[manual][nullvalue]" id="metric_extra_manual_nullvalue" value="0" size="3" type="text"/><label for="metric_extra_manual_nullvalue">');?></label></td></tr>
 <?php
 do_action( 'shrimptest_add_metric_extra', $metric, $experiment );
 ?>
+<tr class="metric_extra metric_extra_manual"><th><?php _e('Direction','shrimptest');?>:</th><td><?php echo sprintf(__("%s are better.",'shrimptest'), '<select name="metric[manual][direction]" id="metric_extra_manual_direction"><option value="larger">'.__('Larger values','shrimptest').'</option><option value="smaller">'.__('Smaller values','shrimptest').'</option></select>');?></td></tr>
+<tr class="metric_extra metric_extra_manual"><th>Default value:</th><td><input id="metric_extra_manual_ifnull" name="metric[manual][ifnull]" type="checkbox" checked="checked"/> <label for="metric_extra_manual_ifnull"><?php echo sprintf(__("Assume value of %s for visitors who have not triggered an explicit metric update.",'shrimptest'), '</label><input name="metric[manual][nullvalue]" id="metric_extra_manual_nullvalue" value="0" size="3" type="text"/><label for="metric_extra_manual_nullvalue">');?></label></td></tr>
 </table>
 <?php	
 }
