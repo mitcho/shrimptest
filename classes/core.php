@@ -64,8 +64,8 @@ class ShrimpTest {
 	}
 	
 	function load_plugins( ) {
-		$this->metric_types = array();
-		$this->variant_types = array();
+		$this->metric_types = array( (object) array( code => 'manual', name => 'Manual (PHP required)' ) );
+		$this->variant_types = array( (object) array( code => 'manual', name => 'Manual (PHP required)' ) );
 		foreach ( glob( SHRIMPTEST_DIR . '/plugins/*.php' ) as $plugin ) {
 			include_once $plugin;
 
@@ -746,18 +746,18 @@ where e.experiment_id = {$experiment_id}" );
 	}
 	
 	function get_variant_types_to_edit( $current_type = null ) {
-		$types = array( 'manual' => (object) array( 'name' => 'Manual (requires PHP)' ) );
+		$types = array();
 		foreach ( $this->variant_types as $variant ) {
 			$types[ $variant->code ] = (object) array( 'name' => $variant->name );
-			if ( $current_type == $metric->code )
-				$types[ $metric->code ]->selected = true;
+			if ( $current_type == $variant->code )
+				$types[ $variant->code ]->selected = true;
 		}
 		apply_filters( 'shrimptest_get_variant_types_to_edit', $types, $current_type );
 		return $types;
 	}
 	
 	function get_metric_types_to_edit( $current_type = null ) {
-		$types = array( 'manual' => (object) array( 'name' => 'Manual (requires PHP)' ) );
+		$types = array();
 		foreach ( $this->metric_types as $metric ) {
 			$types[ $metric->code ] = (object) array( 'name' => $metric->name );
 			if ( $current_type == $metric->code )
