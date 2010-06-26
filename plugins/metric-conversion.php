@@ -88,7 +88,7 @@ class ShrimpTest_Metric_Conversion {
 		if ( stripos( $url, get_bloginfo( 'url' ) ) !== 0 )
 			wp_die( __( 'The specified conversion URL is not part of your WordPress site. Please go back and enter another.', 'shrimptest' ) );
 	
-		$query_vars = retrieve_query_vars( $url );
+		$query_vars = $this->retrieve_query_vars( $url );
 		if ( $query_vars ) {
 			// reconstruct the appropriate title, right here, right now.
 			// NOTE: this method may be relatively fragile.
