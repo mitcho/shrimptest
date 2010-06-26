@@ -39,21 +39,21 @@ function shrimptest_details_metabox( ) {
 function shrimptest_variants_metabox( ) {
 	global $shrimp, $experiment;
 	
-	$types = $shrimp->get_variant_types_strings( );
+	$types = $shrimp->get_variant_types_to_edit( $experiment->variants_type );
 	
 	if ( array_search( $experiment->variants_type, array_keys( $types ) ) === false )
 		wp_die( sprintf("The variant type code <code>%s</code> is not currently registered. This experiment cannot be edited nor activated.", $experiment->variants_type ) );
 	
 ?>
-<div class="samplecodediv variant_extra variant_extra_manual">
+<div class="samplecodediv variants_extra variants_extra_manual">
 <h4>Sample code:</h4>
 <pre id="variants_code" class="samplecode"></pre>
 </div>
 <table class='shrimptest' id='shrimptest_variants'>
 <tr><th><?php _e('Type','shrimptest');?>:</th><td colspan="2"><select id="variants_type" name="variants_type">
 <?php
-foreach ( $types as $code => $name ) {
-  echo "<option value=\"{$code}\"".($code == $experiment->variants_type?' selected="selected"':'').">" . __($name, 'shrimptest') . "</option>";
+foreach ( $types as $code => $type ) {
+  echo "<option value=\"{$code}\"".($type->selected ?' selected="selected"':'').($type->disabled ?' disabled="disabled"':'').">" . __($type->name, 'shrimptest') . "</option>";
 }
 ?>
 </select></td></tr>
@@ -85,7 +85,7 @@ function shrimptest_metric_metabox( ) {
 	global $shrimp, $experiment_id, $experiment, $metric_id;
 	$metric = $shrimp->get_metric( $metric_id );
 	
-	$types = $shrimp->get_metric_types_strings( );
+	$types = $shrimp->get_metric_types_to_edit( $experiment->metric_type );
 	
 	if ( array_search( $experiment->metric_type, array_keys( $types ) ) === false )
 		wp_die( sprintf("The metric type code <code>%s</code> is not currently registered. This experiment cannot be edited nor activated.", $experiment->metric_type ) );
@@ -101,8 +101,8 @@ function shrimptest_metric_metabox( ) {
 <!--<tr><th><?php _e('ID:','shrimptest');?></th><td><code><?php echo $metric_id; ?></code></td></tr>-->
 <tr><th><label for="metric_type"><?php _e('Metric type:','shrimptest');?></th><td><select id="metric_type" name="metric_type">
 <?php
-foreach ( $types as $code => $name ) {
-  echo "<option value=\"{$code}\"".($code == $experiment->metrics_type?' selected="selected"':'').">" . __($name, 'shrimptest') . "</option>";
+foreach ( $types as $code => $type ) {
+  echo "<option value=\"{$code}\"".($type->selected ?' selected="selected"':'').($type->disabled ?' disabled="disabled"':'').">" . __($type->name, 'shrimptest') . "</option>";
 }
 ?>
 </select></td></tr>

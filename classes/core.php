@@ -88,6 +88,10 @@ class ShrimpTest {
 		}
 	}
 	
+	/*
+	 * AGGREGATE EXPERIMENT FUNCTIONS
+	 */
+	
 	function get_active_experiments( ) {
 		return $this->get_experiments( array('status'=>'active') );
 	}
@@ -125,9 +129,35 @@ class ShrimpTest {
 		return $wpdb->get_results( $sql );
 	}
 
+	/*
+	 * INDIVIDUAL EXPERIMENT FUNCTIONS
+	 */
+
 	function get_experiment( $experiment_id ) {
 		global $wpdb;
 		return $wpdb->get_row( "select * from {$this->db_prefix}experiments where experiment_id = {$experiment_id}" );
+	}
+	
+	function update_experiment( $experiment_id, $experiment_data ) {
+		global $wpdb;
+
+		// update shrimptest_experimensts
+		extract( $experiment_data );
+		$wpdb->query( $wpdb->prepare( "update {$this->db_prefix}experiments "
+																	. "set name = %s, variants_type = %s, metric_id = %d "
+																	. "where experiment_id = %d",
+																	$name, $variants_type, $metric_id, $experiment_id ) );
+
+		// update shrimptest_experiments_variants		
+		foreach ( $variants as $variant_id => $variant_data )
+			$this->update_experiment_variant( $experiment_id, $variant_id, $variant_data );
+		$variant_count = count( $variants );
+		$wpdb->query( $wpdb->prepare( "delete from {$this->db_prefix}experiments_variants "
+																	. "where experiment_id = %d and variant_id >= %d",
+																	$experiment_id, $variant_count ) );
+		
+		if ( true ) // TODO: if enough information
+			$this->update_experiment_status( $experiment_id, 'inactive' );
 	}
 	
 	function get_experiment_status( $experiment_id ) {
@@ -137,8 +167,16 @@ class ShrimpTest {
 
 	function update_experiment_status( $experiment_id, $status ) {
 		global $wpdb;
-		$wpdb->query( $wpdb->prepare( "update {$this->db_prefix}experiments set status = %s where experiment_id = %d",
-																	$status, $experiment_id ) );
+		$data = compact( 'status' );
+		$where = compact( 'experiment_id' );
+		$wpdb->update( "{$this->db_prefix}experiments", $data, $where, '%s', '%d' );
+	}
+
+	function update_variants_type( $experiment_id, $variants_type ) {
+		global $wpdb;
+		$data = compact( 'variants_type' );
+		$where = compact( 'experiment_id' );
+		$wpdb->update( "{$this->db_prefix}experiments", $data, $where, '%s', '%d' );		
 	}
 	
 	function get_experiment_stats( $experiment_id ) {
@@ -187,6 +225,10 @@ class ShrimpTest {
 	}
 	
 	/*
+	 * EXPERIMENT VARIANT FUNCTIONS
+	 */
+	
+	/*
 	 * get_experiment_variants: get a list of variants for the current experiment
 	 */
 	function get_experiment_variants( $experiment_id ) {
@@ -211,26 +253,9 @@ class ShrimpTest {
 		return $variant;
 	}
 	
-	function update_experiment( $experiment_id, $experiment_data ) {
+	function delete_experiment_variant( $experiment_id, $variant_id ) {
 		global $wpdb;
-
-		// update shrimptest_experimensts
-		extract( $experiment_data );
-		$wpdb->query( $wpdb->prepare( "update {$this->db_prefix}experiments "
-																	. "set name = %s, variants_type = %s, metric_id = %d "
-																	. "where experiment_id = %d",
-																	$name, $variants_type, $metric_id, $experiment_id ) );
-
-		// update shrimptest_experiments_variants		
-		foreach ( $variants as $variant_id => $variant_data )
-			$this->update_experiment_variant( $experiment_id, $variant_id, $variant_data );
-		$variant_count = count( $variants );
-		$wpdb->query( $wpdb->prepare( "delete from {$this->db_prefix}experiments_variants "
-																	. "where experiment_id = %d and variant_id >= %d",
-																	$experiment_id, $variant_count ) );
-		
-		if ( true ) // TODO: if enough information
-			$this->update_experiment_status( $experiment_id, 'inactive' );
+		$wpdb->query( $wpdb->prepare( "delete from {$this->db_prefix}experiments_variants where where `experiment_id` = %s and `variant_id` = %s", $experiment_id, $variant_id ) );
 	}
 	
 	function update_experiment_variant( $experiment_id, $variant_id, $variant_data ) {
@@ -252,16 +277,10 @@ class ShrimpTest {
 																	$name, $assignment_weight, $data ) );
 	}
 	
-	function get_metric( $metric_id ) {
-		global $wpdb;
-		$metric = $wpdb->get_row( "select metric_id, name, type, data, timestamp
-																from `{$this->db_prefix}metrics`
-																where `metric_id` = {$metric_id}" );
-		if ( isset( $metric->data ) )
-			$metric->data = unserialize( $metric->data );
-		return $metric;
-	}
-
+	/*
+	 * AGGREGATE METRIC FUNCTIONS
+	 */
+	
 	function get_metrics( $args = array() ) {
 		global $wpdb;
 		$defaults = array(
@@ -296,6 +315,20 @@ class ShrimpTest {
 		return $metrics;
 	}
 	
+	/*
+	 * METRIC FUNCTIONS
+	 */
+	
+	function get_metric( $metric_id ) {
+		global $wpdb;
+		$metric = $wpdb->get_row( "select metric_id, name, type, data, timestamp
+																from `{$this->db_prefix}metrics`
+																where `metric_id` = {$metric_id}" );
+		if ( isset( $metric->data ) )
+			$metric->data = unserialize( $metric->data );
+		return $metric;
+	}
+	
 	function update_metric( $metric_id, $metric_data ) {
 		global $wpdb;
 
@@ -315,6 +348,9 @@ class ShrimpTest {
 																	$name, $type, $data, $metric_id ) );		
 	}
 	
+	/*
+	 * check_cookie
+	 */	
 	function check_cookie( ) {
 		global $wpdb;
 
@@ -709,20 +745,26 @@ where e.experiment_id = {$experiment_id}" );
 							values ({$visitor_id},{$experiment_id},{$variant})" );*/
 	}
 	
-	function get_variant_types_strings( ) {
-		$strings = array( 'manual' => __('Manual (requires PHP)', 'shrimptest' ) );
+	function get_variant_types_to_edit( $current_type = null ) {
+		$types = array( 'manual' => (object) array( 'name' => 'Manual (requires PHP)' ) );
 		foreach ( $this->variant_types as $variant ) {
-			$strings[ $variant->code ] = $variant->name;
+			$types[ $variant->code ] = (object) array( 'name' => $variant->name );
+			if ( $current_type == $metric->code )
+				$types[ $metric->code ]->selected = true;
 		}
-		return $strings;
+		apply_filters( 'shrimptest_get_variant_types_to_edit', $types, $current_type );
+		return $types;
 	}
 	
-	function get_metric_types_strings( ) {
-		$strings = array( 'manual' => __('Manual (requires PHP)', 'shrimptest' ) );
+	function get_metric_types_to_edit( $current_type = null ) {
+		$types = array( 'manual' => (object) array( 'name' => 'Manual (requires PHP)' ) );
 		foreach ( $this->metric_types as $metric ) {
-			$strings[ $metric->code ] = $metric->name;
+			$types[ $metric->code ] = (object) array( 'name' => $metric->name );
+			if ( $current_type == $metric->code )
+				$types[ $metric->code ]->selected = true;
 		}
-		return $strings;
+		apply_filters( 'shrimptest_get_metric_types_to_edit', $types, $current_type );
+		return $types;
 	}
 	
 	/*
