@@ -26,7 +26,7 @@ function shrimptest_active_experiments_metabox() {
 	foreach ( $experiments as $experiment ) {
 		$date_format = get_option('date_format');
 		$start_date = date( $date_format, $experiment->start_time );
-		echo "<tr><td>{$experiment->experiment_id}</td><td>{$experiment->name}</td><td>{$experiment->status}</td><td>{$start_date}</td></tr>";
+		echo "<tr><td>{$experiment->experiment_id}</td><td>{$experiment->experiment_name}</td><td>{$experiment->status}</td><td>{$start_date}</td></tr>";
 	}
 	echo "</tbody></table>";
 }

@@ -88,7 +88,7 @@ class ShrimpTest_Interface {
 	
 	function admin_new_experiment_redirect( ) {
 
-		if ( $_GET['page'] != "{$this->slug}_experiments" )
+		if ( !isset( $_GET['page'] ) || $_GET['page'] != "{$this->slug}_experiments" )
 			return;
 
 		if ( isset( $_REQUEST['submit'] ) ) {

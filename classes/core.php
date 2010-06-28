@@ -64,8 +64,8 @@ class ShrimpTest {
 	}
 	
 	function load_plugins( ) {
-		$this->metric_types = array( (object) array( code => 'manual', name => 'Manual (PHP required)' ) );
-		$this->variant_types = array( (object) array( code => 'manual', name => 'Manual (PHP required)' ) );
+		$this->metric_types = array( (object) array( 'code' => 'manual', 'name' => 'Manual (PHP required)' ) );
+		$this->variant_types = array( (object) array( 'code' => 'manual', 'name' => 'Manual (PHP required)' ) );
 		foreach ( glob( SHRIMPTEST_DIR . '/plugins/*.php' ) as $plugin ) {
 			include_once $plugin;
 
@@ -124,7 +124,7 @@ class ShrimpTest {
 			$sql .= " and status in ('".implode("','",$status)."')";
 		}
 		
-		$sql .= " order by {$r[orderby]} {$r[order]}";
+		$sql .= " order by {$r['orderby']} {$r['order']}";
 
 		return $wpdb->get_results( $sql );
 	}
@@ -190,7 +190,7 @@ class ShrimpTest {
 		$value = "value";
 
 		if ( $metric->data['ifnull'] )
-			$value = "ifnull(value,{$metric->data[nullvalue]})";
+			$value = "ifnull(value,{$metric->data['nullvalue']})";
 
 		if ( $metric->data['direction'] == 'larger' )
 			$value = "max({$value})";
