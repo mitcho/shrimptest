@@ -17,7 +17,7 @@ class ShrimpTest {
 	var $cookie_days;
 
 	// versioning:	
-	var $db_version = 16; // change to force database schema update
+	var $db_version = 17; // change to force database schema update
 
 	// user agent filtering lists to be populated
 	var $blocklist;
@@ -52,12 +52,15 @@ class ShrimpTest {
 		add_action( 'init', array( &$this, 'check_cookie' ) );
 
 		add_action( 'wp_footer', array( &$this, 'print_foot' ) );
+		add_action( 'wp_footer', array( &$this, 'record_touched' ) );
 		add_action( 'wp_ajax_shrimptest_record', array( &$this, 'record_cookieability' ) );
 		add_action( 'wp_ajax_nopriv_shrimptest_record', array( &$this, 'record_cookieability' ) );
 
 		$this->load_plugins( );
 
 		add_action( 'wp_ajax_shrimptest_override_variant', array( &$this, 'override_variant' ) );
+		
+		add_filter( 'shrimptest_exempt_user', array( &$this, 'exempt_prefetch' ) );
 		
 		do_action( 'shrimptest_init', &$this );
 		
@@ -435,7 +438,7 @@ class ShrimpTest {
 		$this->blockterms = apply_filters( 'shrimptest_blockterms', $blockterms );
 	}
 
-	function is_blocked( $user_agent ) {
+	function is_blocked( $user_agent = false ) {
 
 		// don't block record_cookieability calls
 		if ( defined( 'DOING_AJAX' ) && DOING_AJAX && $_REQUEST['action'] == 'shrimptest_record' )
@@ -450,6 +453,9 @@ class ShrimpTest {
 		if ( defined( 'DOING_AJAX' ) && DOING_AJAX )
 			return true;
 	
+		if ( !$user_agent )
+			return;
+	
 		if ( !is_array( $this->blockterms ) )
 			$this->blockterms = array( 'this is a dummy string which should never match' );
 		$blockterms = array_map( 'preg_quote', $this->blockterms );
@@ -463,6 +469,16 @@ class ShrimpTest {
 		if ( is_user_logged_in( ) )
 			$exempt = true;
 		$exempt = apply_filters( 'shrimptest_exempt_user', $exempt );
+		return $exempt;
+	}
+	
+	function exempt_prefetch( $exempt ) {
+		if ( $exempt )
+			return $exempt;
+		if ( isset( $_SERVER['HTTP_X_MOZ'] ) && $_SERVER['HTTP_X_MOZ'] == 'prefetch' )
+			return true;
+		if ( isset( $_SERVER['HTTP_X_PURPOSE'] ) && $_SERVER['HTTP_X_PURPOSE'] == 'preview' )
+			return true;
 		return $exempt;
 	}
 	
@@ -513,6 +529,38 @@ class ShrimpTest {
 														where `visitor_id` = {$visitor_id}" );
 	}
 
+	function get_cache_visitor_variants_string( ) {
+		global $wpdb;
+
+		if ( !$visitor_id )
+			$visitor_id = $this->visitor_id;
+		if ( is_null( $visitor_id ) )
+			return null;
+
+		$variants = $wpdb->get_results( $wpdb->prepare(
+			"select experiment_id, variant_id from {$this->db_prefix}experiments "
+			."join {$this->db_prefix}request_touches using (experiment_id) "
+			."left join {$this->db_prefix}visitors_variants using (experiment_id) "
+			."where request = %s order by experiment_id asc", $this->request_uri( ) ) );
+
+		$variant_strings = array();
+		foreach ($variants as $variant) {
+			if ($variant->variant_id !== null) {
+				$variant_id = $variant->variant_id;
+			} else {
+				$variant_id = $this->get_visitor_variant( $variant->experiment_id );
+			}
+			// only add the string if it's non-null
+			if ( $variant_id !== null )
+				$variant_strings[] = $variant->experiment_id . ':' . $variant_id;
+		}
+
+		if ( count( $variant_strings ) )
+			return join(';', $variant_strings);
+		else
+			return 'no experiments on this page';
+	}
+	
 	/*
 	 * get_visitor_variant: get the variant for the given experiment and visitor
 	 *
@@ -533,7 +581,7 @@ class ShrimpTest {
 			$visitor_id = $this->visitor_id;
 		if ( is_null( $visitor_id ) )
 			return null;
-		
+			
 		// if the experiment is not turned on, use the control.
 		if ( $this->get_experiment_status( $experiment_id ) != 'active' )
 			return null;
@@ -562,7 +610,6 @@ class ShrimpTest {
 		}
 		
 		$this->touch_experiment( $experiment_id, array( 'variant' => $variant ) );
-		
 		return $variant;
 	}
 	
@@ -641,7 +688,78 @@ class ShrimpTest {
 		$touched_metrics = $this->get_touched_metrics();
 		return ( !empty( $touched_experiments ) || !empty( $touched_metrics ) );
 	}
+	
+	function request_uri( ) {
+		return $_SERVER['SERVER_NAME'] . $_SERVER['SERVER_PORT'] . $_SERVER['REQUEST_URI'];
+	}
+	
+	function record_touched( $force = false ) {
+		global $wpdb;
+		
+		// if it's an admin, ajax, or feed call that doesn't need to be 
+		if ( $this->is_blocked( ) || apply_filters( 'shrimptest_record_touched_is_404', is_404( ) ) )
+			return;
+		
+		$request = $this->request_uri( );
+		
+		$cache = $wpdb->get_row( $wpdb->prepare("select group_concat(distinct experiment_id order by experiment_id asc) as experiments, group_concat(distinct metric_id order by metric_id asc) as metrics from {$this->db_prefix}request_touches where request = %s", $request ) );
 
+		// if we want to force a recording, don't worry about this.
+		if ( !$force ) {
+			// if we haven't touched anything...
+			if ( !$this->has_been_touched( ) ) {
+				// we expect the experiments and metrics in the cache to be empty.
+				if ( !$cache->experiments && !$cache->metrics )
+					return;
+			} else { // if we touched some experiments...
+				$experiments = $this->get_touched_experiments( );
+				if ( $experiments ) {
+					$experiments = array_keys( $experiments );
+					sort( $experiments );
+				} else {
+					$experiments = array();
+				}
+				
+				$metrics = $this->get_touched_metrics( );
+				if ( $metrics ) {
+					$metrics = array_keys( $metrics );
+					sort( $metrics );
+				} else {
+					$metrics = array();
+				}
+
+				// if the ids are the same as in the cache, return
+				if ( join( ',', $experiments ) == $cache->experiments
+					&& join( ',', $metrics ) == $cache->metrics )
+					return;
+			}
+		}
+		
+		// if we're still here, let's reset the request_touches cache and insert new entries.
+		$wpdb->query( $wpdb->prepare( "delete from {$this->db_prefix}request_touches where request = %s", $request ) );
+		
+		if ( !$this->has_been_touched( ) ) {
+			$table = "{$this->db_prefix}request_touches";
+			$data = array( 'request' => $request );
+			$wpdb->insert( $table, $data, '%s' );
+			return;
+		} else {
+			$values = array();
+			$escaped_request = $wpdb->escape( $request );
+			$experiments = $this->get_touched_experiments( );
+			if ( !empty( $experiments ) ) {
+				foreach( array_keys( $experiments ) as $experiment_id )
+					$values[] = "( '$escaped_request', '{$experiment_id}', null )";
+			}
+			$metrics = $this->get_touched_metrics( );
+			if ( !empty( $metrics ) ) {
+				foreach( array_keys( $metrics ) as $metric_id )
+					$values[] = "( '$escaped_request', null, '{$metric_id}' )";
+			}
+			$wpdb->query( "insert into {$this->db_prefix}request_touches ( request, experiment_id, metric_id ) values " . join( ',', $values ) );
+		}
+	}
+	
 	function print_foot( ) {
 		global $wpdb;
 
@@ -842,7 +960,14 @@ where e.experiment_id = {$experiment_id}" );
 							`type` VARCHAR( 255 ) NOT NULL default 'conversion',
 							`data` LONGTEXT NULL,
 							`timestamp` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-						) ENGINE = MYISAM ");
+						) ENGINE = MYISAM ",
+						"CREATE TABLE `{$this->db_prefix}request_touches` (
+							`request` varchar(1000) NOT NULL DEFAULT '',
+							`experiment_id` int(11) unsigned DEFAULT NULL,
+							`metric_id` int(11) unsigned DEFAULT NULL,
+							KEY `request` (`request`),
+							KEY `experiment_id` (`experiment_id`)
+						) ENGINE=MyISAM");
 		dbDelta( $dbSql );
 		
 	}
