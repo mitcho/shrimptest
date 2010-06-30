@@ -535,20 +535,27 @@ class ShrimpTest {
 		if ( !$visitor_id )
 			$visitor_id = $this->visitor_id;
 		if ( is_null( $visitor_id ) )
-			return null;
+			return 'no visitor id';
 
 		$variants = $wpdb->get_results( $wpdb->prepare(
-			"select experiment_id, variant_id from {$this->db_prefix}experiments "
-			."join {$this->db_prefix}request_touches using (experiment_id) "
+			"select ifnull(experiment_id,'metric') as experiment_id, variant_id from {$this->db_prefix}request_touches "
+			."left join {$this->db_prefix}experiments using (experiment_id) "
 			."left join {$this->db_prefix}visitors_variants using (experiment_id) "
 			."where request = %s order by experiment_id asc", $this->request_uri( ) ) );
 
 		$variant_strings = array();
 		foreach ($variants as $variant) {
-			if ($variant->variant_id !== null) {
+		
+			// if there's a metric recorded on this page, we want to not cache it.
+			if ( $variant->experiment_id == 'metric' )
+				return 'metric';
+		
+			if ( $variant->variant_id !== null ) {
 				$variant_id = $variant->variant_id;
 			} else {
 				$variant_id = $this->get_visitor_variant( $variant->experiment_id );
+				if ( $variant_id !== null )
+					return 'calculating experiments list';
 			}
 			// only add the string if it's non-null
 			if ( $variant_id !== null )

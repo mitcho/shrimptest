@@ -12,7 +12,9 @@
 function wp_supercache_shrimptest_cache_key_filter( $key ) {
 	global $wpdb, $shrimp;
 	$variants_string = $shrimp->get_cache_visitor_variants_string( );
-	if ( $variants_string == 'metric' || $variants_string == 'calculating experiments list' ) {
+	if ( $variants_string == 'metric'
+			|| $variants_string == 'calculating experiments list'
+			|| $variants_string == 'no visitor id' ) {
 		if ( !defined( 'DONOTCACHEPAGE' ) )
 			define( 'DONOTCACHEPAGE', true );
 	} else if ( $variants_string == 'no experiments on this page' ) {
@@ -26,11 +28,11 @@ function wp_supercache_shrimptest_cache_key_filter( $key ) {
 add_cacheaction( 'wp_cache_key', 'wp_supercache_shrimptest_cache_key_filter' );
 
 function wp_supercache_shrimptest_admin() {
-	global $shrimp, $wp_cache_config_file;
+	global $shrimp, $wp_cache_config_file, $wp_super_cache_late_init;
 	
 	$use_shrimptest = ( defined( 'SHRIMPTEST_VERSION' ) && version_compare( SHRIMPTEST_VERSION, 0.1, '>=' ) );
 	
-	if ( defined( 'SHRIMPTEST_VERSION' ) && SHRIMPTEST_VERSION ) {
+	if ( $user_shrimptest && !$wp_super_cache_late_init ) {
 		wp_cache_replace_line('^ *\$wp_super_cache_late_init', "\$wp_super_cache_late_init = 1;", $wp_cache_config_file);
 	}
 
