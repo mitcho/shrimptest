@@ -10,6 +10,10 @@
 
 
 function wp_supercache_shrimptest_cache_key_filter( $key ) {
+	global $wp_super_cache_late_init;
+	if ( !$wp_super_cache_late_init )
+		return;
+		
 	$use_shrimptest = ( defined( 'SHRIMPTEST_VERSION' ) && version_compare( SHRIMPTEST_VERSION, 0.1, '>=' ) );
 	if ( !$use_shrimptest )
 		return $key;
@@ -26,7 +30,7 @@ function wp_supercache_shrimptest_cache_key_filter( $key ) {
 	} else {
 		$key .= "|" . $variants_string;
 	}
-	// echo "<!--key:{$key}-->";
+	// echo "<!--key:{$key}  {$variants_string}-->";
 	return $key;
 }
 add_cacheaction( 'wp_cache_key', 'wp_supercache_shrimptest_cache_key_filter' );
@@ -36,7 +40,7 @@ function wp_supercache_shrimptest_admin() {
 	
 	$use_shrimptest = ( defined( 'SHRIMPTEST_VERSION' ) && version_compare( SHRIMPTEST_VERSION, 0.1, '>=' ) );
 	
-	if ( $user_shrimptest && !$wp_super_cache_late_init ) {
+	if ( $use_shrimptest && !$wp_super_cache_late_init ) {
 		wp_cache_replace_line('^ *\$wp_super_cache_late_init', "\$wp_super_cache_late_init = 1;", $wp_cache_config_file);
 	}
 
