@@ -10,7 +10,11 @@
 
 
 function wp_supercache_shrimptest_cache_key_filter( $key ) {
-	global $wpdb, $shrimp;
+	$use_shrimptest = ( defined( 'SHRIMPTEST_VERSION' ) && version_compare( SHRIMPTEST_VERSION, 0.1, '>=' ) );
+	if ( !$use_shrimptest )
+		return $key;
+
+	global $shrimp;
 	$variants_string = $shrimp->get_cache_visitor_variants_string( );
 	if ( $variants_string == 'metric'
 			|| $variants_string == 'calculating experiments list'
