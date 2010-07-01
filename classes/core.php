@@ -532,19 +532,24 @@ class ShrimpTest {
 	function get_cache_visitor_variants_string( ) {
 		global $wpdb;
 
-		if ( !$visitor_id )
-			$visitor_id = $this->visitor_id;
+		if ( is_null( $this->visitor_id ) )
+			$this->check_cookie( );
+		$visitor_id = $this->visitor_id;
 		if ( is_null( $visitor_id ) )
 			return 'no visitor id';
 
 		$variants = $wpdb->get_results( $wpdb->prepare(
-			"select ifnull(experiment_id,'metric') as experiment_id, variant_id from {$this->db_prefix}request_touches "
-			."left join {$this->db_prefix}experiments using (experiment_id) "
-			."left join {$this->db_prefix}visitors_variants using (experiment_id) "
-			."where request = %s order by experiment_id asc", $this->request_uri( ) ) );
+			"select ifnull(rt.experiment_id,if(rt.metric_id is not null,'metric',null)) as experiment_id, variant_id from {$this->db_prefix}request_touches as rt "
+			."left join {$this->db_prefix}experiments as e using (experiment_id) "
+			."left join {$this->db_prefix}visitors_variants as vv on (rt.experiment_id = vv.experiment_id and vv.visitor_id = %s) "
+			."where request = %s order by experiment_id asc", $visitor_id, $this->request_uri( ) ) );
 
 		$variant_strings = array();
 		foreach ($variants as $variant) {
+
+			// if an experiment_id is null, that means there were no experiments on this page.
+			if ( $variant->experiment_id == null )
+				return 'no experiments on this page';
 		
 			// if there's a metric recorded on this page, we want to not cache it.
 			if ( $variant->experiment_id == 'metric' )
@@ -590,8 +595,10 @@ class ShrimpTest {
 			return null;
 			
 		// if the experiment is not turned on, use the control.
-		if ( $this->get_experiment_status( $experiment_id ) != 'active' )
+		if ( $this->get_experiment_status( $experiment_id ) != 'active' ) {
+			$this->touch_experiment( $experiment_id, array( 'variant' => null ) );
 			return null;
+		}
 
 		$variant = $wpdb->get_var( "select variant_id from `{$this->db_prefix}visitors_variants`
 																where `experiment_id` = {$experiment_id}
@@ -741,7 +748,7 @@ class ShrimpTest {
 					return;
 			}
 		}
-		
+
 		// if we're still here, let's reset the request_touches cache and insert new entries.
 		$wpdb->query( $wpdb->prepare( "delete from {$this->db_prefix}request_touches where request = %s", $request ) );
 		
