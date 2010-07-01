@@ -124,7 +124,7 @@ class ShrimpTest_Variant_Shortcode {
 			if ( isset( $variants[0] ) && ( $variants[0]->data['value'] == $content ) ) {
 				// no need to update control!
 			} else {
-				$variant_data = array( name => 'Control', assignment_weight => ($variants[0]->assignment_weight || 1), value => $content );
+				$variant_data = array( 'name' => 'Control', 'assignment_weight' => ($variants[0]->assignment_weight || 1), 'value' => $content );
 				$this->shrimp->update_experiment_variant( $experiment_id, 0, $variant_data );
 			}
 			
@@ -139,12 +139,12 @@ class ShrimpTest_Variant_Shortcode {
 					if ( $variant_data->data['value'] == $variant )
 						continue; // no need to update
 
-					$variant_data = array( name => $variant_data->variant_name,
-														assignment_weight => $variant_data->assignment_weight,
-														data => array( value => $variant ) );
+					$variant_data = array( 'name' => $variant_data->variant_name,
+														'assignment_weight' => $variant_data->assignment_weight,
+														'value' => $variant );
 				} else {
 					$variant_id = $next_variant_id ++;
-					$variant_data = array( name => $name, assignment_weight => 1, value => $variant );
+					$variant_data = array( 'name' => $name, 'assignment_weight' => 1, 'value' => $variant );
 				}
 
 				// keep track of the variants which were in the args
