@@ -163,6 +163,33 @@ class ShrimpTest {
 			$this->update_experiment_status( $experiment_id, 'inactive' );
 	}
 	
+	function delete_experiment( $experiment_id, $force = false ) {
+		global $wpdb;
+		
+		if ( !$force && $this->get_experiment_status( $experiment_id ) == 'active' )
+			wp_die( sprintf( "Experiment %d cannot be deleted as it is currently active.", $experiment_id ) );
+		
+		$wpdb->query( $wpdb->prepare( 
+			"delete from {$this->db_prefix}experiments_variants where `experiment_id` = %d", 
+			$experiment_id ) );
+		$wpdb->query( $wpdb->prepare( 
+			"delete from {$this->db_prefix}visitors_variants where `experiment_id` = %d", 
+			$experiment_id ) );
+
+		$metric = $wpdb->get_var( 
+			$wpdb->prepare( "select metric_id from {$this->db_prefix}experiments where `experiment_id` = %d", 
+			$experiment_id ) );
+
+		$deleted = $wpdb->query( $wpdb->prepare( 
+			"delete from {$this->db_prefix}experiments where `experiment_id` = %d", 
+			$experiment_id ) );
+
+		if ( !is_null( $metric ) )
+			$this->delete_metric( $metric );
+			
+		return $deleted;
+	}
+	
 	function get_experiment_status( $experiment_id ) {
 		global $wpdb;
 		return $wpdb->get_var( "select status from {$this->db_prefix}experiments where experiment_id = {$experiment_id}" );
@@ -258,7 +285,7 @@ class ShrimpTest {
 	
 	function delete_experiment_variant( $experiment_id, $variant_id ) {
 		global $wpdb;
-		$wpdb->query( $wpdb->prepare( "delete from {$this->db_prefix}experiments_variants where where `experiment_id` = %s and `variant_id` = %s", $experiment_id, $variant_id ) );
+		$wpdb->query( $wpdb->prepare( "delete from {$this->db_prefix}experiments_variants where where `experiment_id` = %d and `variant_id` = %d", $experiment_id, $variant_id ) );
 	}
 	
 	function update_experiment_variant( $experiment_id, $variant_id, $variant_data ) {
@@ -349,6 +376,32 @@ class ShrimpTest {
 																	. "set name = %s, type = %s, data = %s "
 																	. "where metric_id = %d",
 																	$name, $type, $data, $metric_id ) );		
+	}
+	
+	function delete_metric( $metric_id, $force = false ) {
+		global $wpdb;
+
+		// metric_id 0 is just a placeholder
+		if ( $metric_id == 0 )
+			return;
+
+		if ( !$force ) {
+			$experiments = $wpdb->get_var( $wpdb->prepare( 
+				"select group_concat(experiment_id) from {$this->db_prefix}experiments where metric_id = %d",
+				$metric_id) );
+			if ( $experiments )
+				wp_die( sprintf( "Metric %d cannot be deleted as it is currently in use. (Experiments: %s)",
+				$metric_id, $experiments ) );
+		}
+
+		$wpdb->query( $wpdb->prepare( 
+			"delete from {$this->db_prefix}visitors_metrics where `metric_id` = %d", 
+			$metric_id ) );
+
+		return $wpdb->query( $wpdb->prepare( 
+			"delete from {$this->db_prefix}metrics where `metric_id` = %d", 
+			$metric_id ) );
+		
 	}
 	
 	/*
