@@ -28,7 +28,7 @@ class ShrimpTest_Variant_Shortcode {
 
 		add_shortcode( $this->shortcode, array( &$this, 'shortcode_handler') );
 		
-		add_filter( 'pre_post_content', array( &$this, 'detection_filter' ), 15 );
+		add_filter( 'content_save_pre', array( &$this, 'detection_filter' ), 15 );
 		
 		add_filter( 'shrimptest_get_variant_types_to_edit', array( &$this, 'variant_types_filter' ), 10, 2 );
 
@@ -41,7 +41,7 @@ class ShrimpTest_Variant_Shortcode {
 
 	function detection_filter( $content ) {
 		global $shortcode_tags, $post_id;
-
+		
 		// backup shortcodes
 		$real_shortcodes = $shortcode_tags;
 		// load the detection shortcode
@@ -92,6 +92,7 @@ class ShrimpTest_Variant_Shortcode {
 	}
 
 	function process_detected_shortcode( $args, $content ) {
+
 		if ( isset( $args['id'] ) ) { 
 			$experiment_id = $args['id'];
 			unset( $args['id'] );
