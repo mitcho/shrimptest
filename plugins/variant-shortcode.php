@@ -34,9 +34,9 @@ class ShrimpTest_Variant_Shortcode {
 
 		add_action( 'shrimptest_add_variant_extra', array( &$this, 'admin_add_variant_extra' ) );
 		add_action( 'shrimptest_admin_header', array( &$this, 'admin_script_and_style' ) );
+		
+		add_action( "update_post_meta", array( &$this, 'cleanup_experiments' ), 10, 4 );
 
-		// Filter for adjusting the aggregate value SQL expression ( max(ifnull(value,0)) )
-		// add_filter( 'shrimptest_get_stats_value_conversion' )
 	}
 
 	function detection_filter( $content ) {
@@ -165,6 +165,26 @@ class ShrimpTest_Variant_Shortcode {
 			// TODO: add a way to then go back and mark this variant as "defective" or something
 		}			
 
+	}
+
+	function cleanup_experiments( $meta_id, $object_id, $meta_key, $meta_value ) {
+		if ( $meta_key != $this->experiment_ids_meta_key )
+			return;
+		$old_value = get_metadata( 'post', $object_id, $meta_key );
+		if ( count( $old_value ) ) {
+			foreach( $old_value[0] as $old_experiment_id ) {
+				// if we're no longer associating this experiment with this post.
+				if ( array_search($old_experiment_id, $meta_value) === false ) {
+					$status = $this->shrimp->get_experiment_status( $old_experiment_id );
+					if ( $status == 'active' ) {
+						wp_die( __("You cannot remove the reference to experiment %d as it is currently active. Your post update has been cancelled.",'shrimptest') );
+					} else if ( $status == 'reserved' || $status == 'inactive' ) {
+						// TODO: check if this experiment is used elsewhere?
+						$this->shrimp->delete_experiment( $old_experiment_id );
+					}
+				}
+			}
+		}
 	}
 
 	function admin_add_variant_extra( $metric ) {
