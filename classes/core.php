@@ -530,7 +530,7 @@ class ShrimpTest {
 	}
 
 	function get_cache_visitor_variants_string( ) {
-		global $wpdb;
+		global $wpdb, $wp_super_cache_debug;
 
 		if ( is_null( $this->visitor_id ) )
 			$this->check_cookie( );
@@ -543,6 +543,11 @@ class ShrimpTest {
 			."left join {$this->db_prefix}experiments as e using (experiment_id) "
 			."left join {$this->db_prefix}visitors_variants as vv on (rt.experiment_id = vv.experiment_id and vv.visitor_id = %s) "
 			."where request = %s order by experiment_id asc", $visitor_id, $this->request_uri( ) ) );
+
+		if ( isset( $wp_super_cache_debug ) && $wp_super_cache_debug ) wp_cache_debug( "ShrimpTest: variants data: $wpdb->last_query\n".var_export($variants, true), 5 );
+
+		if ( !count( $variants ) )
+			return 'calculating experiments list';
 
 		$variant_strings = array();
 		foreach ($variants as $variant) {
@@ -570,7 +575,7 @@ class ShrimpTest {
 		if ( count( $variant_strings ) )
 			return join(';', $variant_strings);
 		else
-			return 'no experiments on this page';
+			return 'calculating experiments list';
 	}
 	
 	/*
@@ -708,54 +713,62 @@ class ShrimpTest {
 	}
 	
 	function record_touched( $force = false ) {
-		global $wpdb;
+		global $wpdb, $wp_super_cache_debug;
 		
 		// if it's an admin, ajax, or feed call that doesn't need to be 
 		if ( $this->is_blocked( ) || apply_filters( 'shrimptest_record_touched_is_404', is_404( ) ) )
 			return;
 		
+		// if this isn't a real visitor
+		if ( is_null( $this->visitor_id ) )
+			return;
+		
 		$request = $this->request_uri( );
 		
-		$cache = $wpdb->get_row( $wpdb->prepare("select group_concat(distinct experiment_id order by experiment_id asc) as experiments, group_concat(distinct metric_id order by metric_id asc) as metrics from {$this->db_prefix}request_touches where request = %s", $request ) );
+		if ( isset( $wp_super_cache_debug ) && $wp_super_cache_debug ) wp_cache_debug( "ShrimpTest: record_touched: $request", 5 );
+		
+		$cache = $wpdb->get_row( $wpdb->prepare("select group_concat(distinct experiment_id order by experiment_id asc) as experiments, group_concat(distinct metric_id order by metric_id asc) as metrics, count(request) as entries from {$this->db_prefix}request_touches where request = %s", $request ) );
 
 		// if we want to force a recording, don't worry about this.
-		if ( !$force ) {
-			// if we haven't touched anything...
-			if ( !$this->has_been_touched( ) ) {
-				// we expect the experiments and metrics in the cache to be empty.
-				if ( !$cache->experiments && !$cache->metrics )
-					return;
-			} else { // if we touched some experiments...
-				$experiments = $this->get_touched_experiments( );
-				if ( $experiments ) {
-					$experiments = array_keys( $experiments );
-					sort( $experiments );
-				} else {
-					$experiments = array();
-				}
-				
-				$metrics = $this->get_touched_metrics( );
-				if ( $metrics ) {
-					$metrics = array_keys( $metrics );
-					sort( $metrics );
-				} else {
-					$metrics = array();
-				}
+		// alternatively, if there are no rows, also don't worry about it.
+		if ( !$force && $cache->entries ) {
+			$experiments = $this->get_touched_experiments( );
+			if ( $experiments ) {
+				$experiments = array_keys( $experiments );
+				sort( $experiments );
+			} else {
+				$experiments = array();
+			}
+			
+			$metrics = $this->get_touched_metrics( );
+			if ( $metrics ) {
+				$metrics = array_keys( $metrics );
+				sort( $metrics );
+			} else {
+				$metrics = array();
+			}
 
-				// if the ids are the same as in the cache, return
-				if ( join( ',', $experiments ) == $cache->experiments
-					&& join( ',', $metrics ) == $cache->metrics )
-					return;
+			// if the ids are the same as in the cache, return
+			if ( join( ',', $experiments ) == $cache->experiments
+				&& join( ',', $metrics ) == $cache->metrics ) {
+				if ( isset( $wp_super_cache_debug ) && $wp_super_cache_debug ) wp_cache_debug( "ShrimpTest: not record_touch-ing because the cache is already good.", 5 );
+				return;
 			}
 		}
 
+		if ( isset( $wp_super_cache_debug ) && $wp_super_cache_debug ) wp_cache_debug( "ShrimpTest: record_touched: recording", 5 );
+		
 		// if we're still here, let's reset the request_touches cache and insert new entries.
-		$wpdb->query( $wpdb->prepare( "delete from {$this->db_prefix}request_touches where request = %s", $request ) );
+		if ( $cache->entries ) {
+			$wpdb->query( $wpdb->prepare( "delete from {$this->db_prefix}request_touches where request = %s", $request ) );
+			if ( isset( $wp_super_cache_debug ) && $wp_super_cache_debug ) wp_cache_debug( "ShrimpTest: record_touched SQL: $wpdb->last_query", 5 );
+		}
 		
 		if ( !$this->has_been_touched( ) ) {
 			$table = "{$this->db_prefix}request_touches";
 			$data = array( 'request' => $request );
 			$wpdb->insert( $table, $data, '%s' );
+			if ( isset( $wp_super_cache_debug ) && $wp_super_cache_debug ) wp_cache_debug( "ShrimpTest: record_touched SQL: $wpdb->last_query; $wpdb->rows_affected", 5 );
 			return;
 		} else {
 			$values = array();
@@ -771,6 +784,7 @@ class ShrimpTest {
 					$values[] = "( '$escaped_request', null, '{$metric_id}' )";
 			}
 			$wpdb->query( "insert into {$this->db_prefix}request_touches ( request, experiment_id, metric_id ) values " . join( ',', $values ) );
+			if ( isset( $wp_super_cache_debug ) && $wp_super_cache_debug ) wp_cache_debug( "ShrimpTest: record_touched SQL: $wpdb->last_query; $wpdb->rows_affected", 5 );
 		}
 	}
 	

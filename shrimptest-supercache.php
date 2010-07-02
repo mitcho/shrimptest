@@ -10,7 +10,7 @@
 
 
 function wp_supercache_shrimptest_cache_key_filter( $key ) {
-	global $wp_super_cache_late_init;
+	global $wp_super_cache_late_init, $wp_super_cache_debug;
 	if ( !$wp_super_cache_late_init )
 		return;
 		
@@ -21,16 +21,25 @@ function wp_supercache_shrimptest_cache_key_filter( $key ) {
 	global $shrimp;
 	$variants_string = $shrimp->get_cache_visitor_variants_string( );
 	if ( $variants_string == 'metric'
-			|| $variants_string == 'calculating experiments list'
-			|| $variants_string == 'no visitor id' ) {
-		if ( !defined( 'DONOTCACHEPAGE' ) )
+			|| $variants_string == 'calculating experiments list' ) {
+		if ( !defined( 'DONOTCACHEPAGE' ) ) {
 			define( 'DONOTCACHEPAGE', true );
+			if ( isset( $wp_super_cache_debug ) && $wp_super_cache_debug ) wp_cache_debug( "ShrimpTest: DONOTCACHEPAGE-ing and prohibiting cached file serving", 5 );
+		}
+		// return nonsense, so we force a regeneration of the page.
+		$key = $key . '|' . md5( rand( ) );
+	} else if ( $variants_string == 'no visitor id' ) {
+		if ( !defined( 'DONOTCACHEPAGE' ) ) {
+			define( 'DONOTCACHEPAGE', true );
+			if ( isset( $wp_super_cache_debug ) && $wp_super_cache_debug ) wp_cache_debug( "ShrimpTest: DONOTCACHEPAGE-ing, but allowing cached file serving", 5 );
+		}
 	} else if ( $variants_string == 'no experiments on this page' ) {
 		// return unchanged
 	} else {
 		$key .= "|" . $variants_string;
 	}
-	// echo "<!--key:{$key}  {$variants_string}-->";
+	if ( isset( $wp_super_cache_debug ) && $wp_super_cache_debug ) wp_cache_debug( "key:{$key}  variants_string:{$variants_string}  visitor_id:{$shrimp->visitor_id}", 5 );
+
 	return $key;
 }
 add_cacheaction( 'wp_cache_key', 'wp_supercache_shrimptest_cache_key_filter' );
