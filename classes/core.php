@@ -844,12 +844,15 @@ class ShrimpTest {
 	function print_foot( ) {
 		global $wpdb;
 
-		if ( $this->exempt_user( ) )
-			return;
+// Disabled so that we still get the footer in cached versions, even if the first user's js status
+// has been recorded.
+// TODO: only disable this if there's caching going on.
+//	if ( $this->exempt_user( ) )
+//		return;
 
-		// if we already know that they have JS, no need to record again.
-		if ( $wpdb->get_var( "select js from `{$this->db_prefix}visitors` where visitor_id = {$this->visitor_id}" ) )
-			return;
+//	// if we already know that they have JS, no need to record again.
+//		if ( $wpdb->get_var( "select js from `{$this->db_prefix}visitors` where visitor_id = {$this->visitor_id}" ) )
+//			return;
 
 		$cookie_name = preg_quote($this->cookie_name);
 	?>
