@@ -70,22 +70,27 @@ class ShrimpTest {
 		$this->metric_types = array( (object) array( 'code' => 'manual', 'name' => 'Manual (PHP required)' ) );
 		$this->variant_types = array( (object) array( 'code' => 'manual', 'name' => 'Manual (PHP required)' ) );
 		foreach ( glob( SHRIMPTEST_DIR . '/plugins/*.php' ) as $plugin ) {
+			unset( $export_class );
 			include_once $plugin;
 
-			$object = new $export_class;
-
-			$object->init( &$this );
-			
-			if ( stripos( $export_class, 'variant' ) ) {
-				if ( array_search( $object->code, array_keys( $this->variant_types ) ) )
-					wp_die( sprintf( "The variant type code <code>%s</code> has already been registered.", $code ) );
-				$this->variant_types[] = $object;
-			}
-
-			if ( stripos( $export_class, 'metric' ) ) {
-				if ( array_search( $object->code, array_keys( $this->metric_types ) ) )
-					wp_die( sprintf( "The metric type code <code>%s</code> has already been registered.", $code ) );
-				$this->metric_types[] = $object;
+			// If $export_class is set, this is a variant or metric plugin (an OO plugin).
+			// If not, we've already run everything so it's all good.
+			if ( isset( $export_class ) && class_exists( $export_class ) ) {
+				$object = new $export_class;
+	
+				$object->init( &$this );
+				
+				if ( stripos( $export_class, 'variant' ) ) {
+					if ( array_search( $object->code, array_keys( $this->variant_types ) ) )
+						wp_die( sprintf( "The variant type code <code>%s</code> has already been registered.", $code ) );
+					$this->variant_types[] = $object;
+				}
+	
+				if ( stripos( $export_class, 'metric' ) ) {
+					if ( array_search( $object->code, array_keys( $this->metric_types ) ) )
+						wp_die( sprintf( "The metric type code <code>%s</code> has already been registered.", $code ) );
+					$this->metric_types[] = $object;
+				}
 			}
 
 		}
