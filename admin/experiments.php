@@ -17,7 +17,7 @@ if ( isset( $_GET['id'] ) ) {
 }
 
 $current_screen = 'shrimptest_experiments';
-register_column_headers($current_screen, array('experiment_id'=>'ID','name'=>'Experiment name','status'=>'Status','start_date'=>'Start date','metric'=>'Metric','metric_N'=>'N','metric_avg'=>'Average','metric_sd'=>'S.D.'));
+register_column_headers($current_screen, array('experiment_id'=>'ID','name'=>'Experiment name','status'=>'Status','start_date'=>'Start date','metric'=>'Metric','metric_N'=>'N','metric_avg'=>'Average','zscore'=>'Z-score'));
 
 ?>
 
@@ -54,16 +54,25 @@ foreach( $experiments as $experiment ) {
 	$status = $status_strings[$experiment->status];
 	$start_date = ($experiment->start_time ? date( $date_format, $experiment->start_time ) : '');
 	
-	echo "<tr><td>{$experiment->experiment_id}</td><td>{$experiment->experiment_name}</td><td>{$status}</td><td>{$start_date}</td><td>{$experiment->metric_name}</td><td>{$total->N}</td><td>{$total->avg}</td><td>{$total->sd}</td></tr>";
+	echo "<tr><td>{$experiment->experiment_id}</td><td>{$experiment->experiment_name}</td><td>{$status}</td><td>{$start_date}</td><td>{$experiment->metric_name}</td><td>{$total->N}</td><td>{$total->avg}</td><td>&nbsp;</td></tr>";
 	
+	unset( $control );
 	foreach ( $stats as $key => $stat ) {
 		$assignment_percentage = round( $stat->assignment_weight / $total->assignment_weight * 1000 ) / 10;
 		if ( $key === 'total' )
 			continue;
 		$name = __("Variant",'shrimptest') . " " . $stat->variant_id;
-		if ($key === 0)
+		if ($key === 0) {
+			$control = $stat;
 			$name .= " (" . __("control", 'shrimptest') . ")";
-		echo "<tr class=\"variant\"><td>{$name}</td><td>{$stat->variant_name} ($assignment_percentage%)</td><td colspan='3'></td><td>{$stat->N}</td><td>{$stat->avg}</td><td>{$stat->sd}</td></tr>";
+			$zscore = __( 'N/A', 'shrimptest' );
+		} else {
+			if ( isset( $control ) && $stat->N && $control->N && ( $stat->sd || $control->sd ) )
+				$zscore = ( $stat->avg - $control->avg ) / sqrt( (pow($stat->sd, 2) / ($stat->N)) + (pow($control->sd, 2) / ($control->N)) );
+			else
+				$zscore = __( 'N/A', 'shrimptest' );
+		}
+		echo "<tr class=\"variant\"><td>{$name}</td><td>{$stat->variant_name} ($assignment_percentage%)</td><td colspan='3'></td><td>{$stat->N}</td><td>{$stat->avg}</td><td>$zscore</td></tr>";
 	}
 	
 }
