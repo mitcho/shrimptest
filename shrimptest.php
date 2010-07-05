@@ -19,11 +19,6 @@ $shrimptest_class = SHRIMPTEST_CLASS;
 $shrimp = new $shrimptest_class( );
 $shrimp->init();
 
-require_once SHRIMPTEST_DIR . '/blocklist.php';
-$shrimp->load_blocklist( $blocklist );
-$shrimp->load_blockterms( $blockterms );
-unset( $blocklist, $blockterms );
-
 require_once SHRIMPTEST_DIR . '/classes/interface.php'; // holds the ShrimpTest_Interface class
 if ( !defined( 'SHRIMPTEST_INTERFACE_CLASS' ) )
 	define( 'SHRIMPTEST_INTERFACE_CLASS', 'ShrimpTest_Interface' );

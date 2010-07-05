@@ -18,10 +18,6 @@ class ShrimpTest {
 
 	// versioning:	
 	var $db_version = 17; // change to force database schema update
-
-	// user agent filtering lists to be populated
-	var $blocklist;
-	var $blockterms;
 	
 	// variables to track information about/throughout the current execution
 	var $visitor_id;
@@ -60,8 +56,6 @@ class ShrimpTest {
 
 		add_action( 'wp_ajax_shrimptest_override_variant', array( &$this, 'override_variant' ) );
 		
-		add_filter( 'shrimptest_exempt_user', array( &$this, 'exempt_prefetch' ) );
-		
 		do_action( 'shrimptest_init', &$this );
 		
 	}
@@ -70,6 +64,12 @@ class ShrimpTest {
 		$this->metric_types = array( (object) array( 'code' => 'manual', 'name' => 'Manual (PHP required)' ) );
 		$this->variant_types = array( (object) array( 'code' => 'manual', 'name' => 'Manual (PHP required)' ) );
 		foreach ( glob( SHRIMPTEST_DIR . '/plugins/*.php' ) as $plugin ) {
+
+			// plugins must have the prefix plugin-, metric-, or variant-.
+			$basename = basename( $plugin );
+			if ( !preg_match( '/^(plugin|metric|variant)-/', $basename ) )
+				continue;
+				
 			unset( $export_class );
 			include_once $plugin;
 
@@ -418,12 +418,13 @@ class ShrimpTest {
 		$this->visitor_id = $this->visitor_cookie = null;
 
 		// check if the current user is exempt, in which case they'll get a null visitor_id
-		if ( $this->exempt_user( ) )
+		if ( $this->exempt_visitor( ) )
 			return;
 
-		// check if this visitor is on our user agent blocklist, largely a list of spiders
+		// check if this visitor is one where we don't need to activate ShrimpTest, or if the 
+		// user agent is on a blacklist (implemented through plugin-blocklist now)
 		$user_agent = $_SERVER['HTTP_USER_AGENT'];
-		if ( $this->is_blocked( $user_agent ) ) {
+		if ( $this->blocked_visit( $user_agent ) ) {
 			return;
 		}
 
@@ -480,23 +481,7 @@ class ShrimpTest {
 		}		
 	}
 
-	/*
-	 * load_blocklist: load the user agent blocklist
-	 * @param array $blocklist
-	 */ 	
-	function load_blocklist( $blocklist ) {
-		$this->blocklist = apply_filters( 'shrimptest_blocklist', $blocklist );
-	}
-
-	/*
-	 * load_blocklist: load the user agent blockterms list
-	 * @param array $blockterms
-	 */ 	
-	function load_blockterms( $blockterms ) {
-		$this->blockterms = apply_filters( 'shrimptest_blockterms', $blockterms );
-	}
-
-	function is_blocked( $user_agent = false ) {
+	function blocked_visit( $user_agent = false ) {
 
 		// don't block record_cookieability calls
 		if ( defined( 'DOING_AJAX' ) && DOING_AJAX && $_REQUEST['action'] == 'shrimptest_record' )
@@ -514,32 +499,17 @@ class ShrimpTest {
 		if ( !$user_agent )
 			return;
 	
-		if ( !is_array( $this->blockterms ) )
-			$this->blockterms = array( 'this is a dummy string which should never match' );
-		$blockterms = array_map( 'preg_quote', $this->blockterms );
-		$blockterms_regexp = '%('.join('|',$blockterms).')%i';
-		return ( preg_match( $blockterms_regexp, $user_agent )
-						 || array_search( $user_agent, $this->blocklist ) );
+		return apply_filters( 'shrimptest_blocked_visit', false, $user_agent );
 	}
 	
-	function exempt_user( ) {
+	function exempt_visitor( ) {
 		$exempt = false;
 		if ( is_user_logged_in( ) )
 			$exempt = true;
-		$exempt = apply_filters( 'shrimptest_exempt_user', $exempt );
+		$exempt = apply_filters( 'shrimptest_exempt_visitor', $exempt );
 		return $exempt;
 	}
-	
-	function exempt_prefetch( $exempt ) {
-		if ( $exempt )
-			return $exempt;
-		if ( isset( $_SERVER['HTTP_X_MOZ'] ) && $_SERVER['HTTP_X_MOZ'] == 'prefetch' )
-			return true;
-		if ( isset( $_SERVER['HTTP_X_PURPOSE'] ) && $_SERVER['HTTP_X_PURPOSE'] == 'preview' )
-			return true;
-		return $exempt;
-	}
-	
+		
 	/*
 	 * update_visitor_metric
 	 * @param boolean $monotonic - if true, will only update if value is greater
@@ -548,7 +518,7 @@ class ShrimpTest {
 		global $wpdb;
 
 		// if the user is exempt (like a logged in admin), return control.
-		if ( $this->exempt_user( ) ) {
+		if ( $this->exempt_visitor( ) ) {
 			$this->touch_metric( $metric_id, array( 'value' => null ) );
 			return null;
 		}
@@ -646,7 +616,7 @@ class ShrimpTest {
 
 		// If the user is exempt (like a logged in admin), check if they've overridden the variant.
 		// If not, it will return null for control.
-		if ( $this->exempt_user( ) ) {
+		if ( $this->exempt_visitor( ) ) {
 			$variant = (int) $this->get_override_variant( $experiment_id );
 			$this->touch_experiment( $experiment_id, array( 'variant' => $variant ) );
 			return $variant;
@@ -767,14 +737,15 @@ class ShrimpTest {
 	}
 	
 	function request_uri( ) {
-		return $_SERVER['SERVER_NAME'] . $_SERVER['SERVER_PORT'] . $_SERVER['REQUEST_URI'];
+		$uri = $_SERVER['SERVER_NAME'] . $_SERVER['SERVER_PORT'] . $_SERVER['REQUEST_URI'];
+		return apply_filters( 'shrimptest_request_uri', $uri );
 	}
 	
 	function record_touched( $force = false ) {
 		global $wpdb, $wp_super_cache_debug;
 		
 		// if it's an admin, ajax, or feed call that doesn't need to be 
-		if ( $this->is_blocked( ) || apply_filters( 'shrimptest_record_touched_is_404', is_404( ) ) )
+		if ( $this->blocked_visit( ) || apply_filters( 'shrimptest_record_touched_is_404', is_404( ) ) )
 			return;
 		
 		// if this isn't a real visitor
@@ -852,7 +823,7 @@ class ShrimpTest {
 // Disabled so that we still get the footer in cached versions, even if the first user's js status
 // has been recorded.
 // TODO: only disable this if there's caching going on.
-//	if ( $this->exempt_user( ) )
+//	if ( $this->exempt_visitor( ) )
 //		return;
 
 //	// if we already know that they have JS, no need to record again.
