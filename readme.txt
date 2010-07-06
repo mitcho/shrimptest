@@ -19,6 +19,7 @@ Please visit the [ShrimpTest development blog](http://shrimptest.wordpress.com) 
 1. Upload `shrimptest.zip` to your plugins directory ( usally `/wp-content/plugins/` )
 2. Unzip the `shrimptest.zip` file
 3. Activate the plugin through the 'Plugins' menu in WordPress
+4. If you are using WP Super Cache, move the `shrimptest-supercache.php` file to the `plugins/wp-super-cache/plugins/` and make sure your WP Super Cache is in Half On mode. ShrimpTest support for WP Super Cache does not work if WP Super Cache is in Full On mode.
 
 == Frequently Asked Question ==
 
