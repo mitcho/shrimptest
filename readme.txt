@@ -29,6 +29,9 @@ Answer.
 
 == Changelog ==
 
+= 0.2 =
+* Beta 2
+
 = 0.1 =
 * Beta 1, July 5, 2010
 
