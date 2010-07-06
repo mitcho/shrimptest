@@ -24,12 +24,12 @@ Please visit the [ShrimpTest development blog](http://shrimptest.wordpress.com) 
 
 = Question =
 
-Anwer.
+Answer.
 
 == Changelog ==
 
 = 0.1 =
-* Initial release
+* Beta 1, July 5, 2010
 
 == Upgrade Notice ==
 
