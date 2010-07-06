@@ -37,6 +37,9 @@ class ShrimpTest_Variant_Shortcode {
 		
 		add_action( "update_post_meta", array( &$this, 'cleanup_experiments' ), 10, 4 );
 
+		add_action( 'edit_page_form', array( &$this, 'edit_helper' ) );
+		add_action( 'edit_form_advanced', array( &$this, 'edit_helper' ) );
+
 	}
 
 	function detection_filter( $content ) {
@@ -54,7 +57,7 @@ class ShrimpTest_Variant_Shortcode {
 		// reinstate the actual shortcodes.
 		$shortcode_tags = $real_shortcodes;
 		
-		update_post_meta( $post_id, $this->experiment_ids_meta_key, $this->detected_experiment_ids );
+		update_post_meta( $post_id, $this->experiment_ids_meta_key, array_unique( $this->detected_experiment_ids ) );
 
 		$this->shortcode_replacement_count = 0;
 		$content = preg_replace_callback( '/(\['.$this->shortcode.'\s*(id=(\d+))?\s*)/', array( &$this, 'add_id_to_shortcode' ), $content, -1, $this->shortcode_replacement_count );
@@ -218,6 +221,22 @@ class ShrimpTest_Variant_Shortcode {
 		} else { // if it's any other kind of variant...
 			// disable the shortcode variant. You can't just drop in here unannounced...
 			$types[ $this->code ]->disabled = true;
+		}
+	}
+		
+	function edit_helper( ) {
+		global $post_ID;
+		$experiment_ids = get_post_meta( $post_ID, $this->experiment_ids_meta_key );
+		if ( !count( $experiment_ids ) )
+			return;
+		$experiment_ids = $experiment_ids[0];
+		foreach ( $experiment_ids as $experiment_id ) {
+			$status = $this->shrimp->get_experiment_status( $experiment_id );
+			echo $status;
+			if ( $status == 'inactive' || $status == 'reserved' ) {
+				$edit_url = "admin.php?page={$this->shrimp->interface->slug}_experiments&action=new&id={$experiment_id}";
+				echo "<div class='updated'><p>" . sprintf(__("This entry includes an inactive experiment. You must <a href='%s'>edit</a> and activate the experiment."),$edit_url) . "</p></div>";
+			}
 		}
 	}
 	
