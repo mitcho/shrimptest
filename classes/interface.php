@@ -15,6 +15,8 @@ class ShrimpTest_Interface {
 	// message ID's
 	var $message_success = 1;
 	var $message_fail = 2;
+	var $message_activated = 3;
+	var $message_concluded = 4;
 
 	function ShrimpTest_Interface( ) {
 		// Hint: run init( )
@@ -22,7 +24,8 @@ class ShrimpTest_Interface {
 
 	function init( &$shrimptest_instance ) {
 		$this->shrimp = &$shrimptest_instance;
-				
+		$this->shrimp->interface = &$this;
+		
 		add_action( 'admin_menu', array( &$this, 'admin_menu' ) );
 
 		add_action( 'wp_footer', array( &$this, 'do_adminbar' ) );
@@ -90,6 +93,32 @@ class ShrimpTest_Interface {
 
 		if ( !isset( $_GET['page'] ) || $_GET['page'] != "{$this->slug}_experiments" )
 			return;
+
+		if ( isset($_GET['action']) && $_GET['action'] == 'activate' ) {
+			$experiment = $_REQUEST['id'];
+			$nonce = $_REQUEST['_wpnonce'];
+			if ( !wp_verify_nonce($nonce, 'activate-experiment_' . $experiment) )
+				wp_die( "That's nonce-ence." );
+			$status = $this->shrimp->get_experiment_status( $experiment );
+			if ( $status != 'inactive' )
+				wp_die( "This experiment cannot be activated. Please edit it first." );
+
+			$this->shrimp->update_experiment_status( $experiment, 'active' );
+			wp_redirect( admin_url("admin.php?page={$this->slug}_experiments&message=" . $this->message_activated) );
+		}
+
+		if ( isset($_GET['action']) && $_GET['action'] == 'conclude' ) {
+			$experiment = $_REQUEST['id'];
+			$nonce = $_REQUEST['_wpnonce'];
+			if ( !wp_verify_nonce($nonce, 'conclude-experiment_' . $experiment) )
+				wp_die( "That's nonce-ence." );
+			$status = $this->shrimp->get_experiment_status( $experiment );
+			if ( $status != 'active' )
+				wp_die( "This experiment cannot be concluded." );
+
+			$this->shrimp->update_experiment_status( $experiment, 'finished' );
+			wp_redirect( admin_url("admin.php?page={$this->slug}_experiments&message=" . $this->message_concluded) );
+		}
 
 		if ( isset( $_REQUEST['submit'] ) ) {
 			$nonce = $_REQUEST['_wpnonce'];

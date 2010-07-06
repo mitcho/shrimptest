@@ -67,15 +67,15 @@ foreach( $experiments as $experiment ) {
 	if ( $experiment->status == 'inactive' ) {
 		$edit_url = 'admin.php?page=shrimptest_experiments&action=new&id=' . $experiment->experiment_id;
 		$actions['edit'] = '<a href="'.$edit_url.'">' . __('Edit', 'shrimptest') . '</a>';
-		$start_url = wp_nonce_url('admin.php?page=shrimptest_experiments&amp;action=start&amp;id=' . $experiment->experiment_id, 'start-experiment_' . $experiment->experiment_id);
-		$actions['start'] = '<a class="submitdelete" href="'.$start_url.'">' . __('Start', 'shrimptest') . '</a>';
+		$activate_url = wp_nonce_url('admin.php?page=shrimptest_experiments&amp;action=activate&amp;id=' . $experiment->experiment_id, 'activate-experiment_' . $experiment->experiment_id);
+		$actions['activate'] = '<a href="'.$activate_url.'">' . __('Activate', 'shrimptest') . '</a>';
 
 	}
-	/* TODO: implement "End"
+
 	if ( $experiment->status == 'active' ) {
-		$end_url = wp_nonce_url('admin.php?page=shrimptest_experiments&amp;action=end&amp;id=' . $experiment->experiment_id, 'end-experiment_' . $experiment->experiment_id);
-		$actions['end'] = '<a class="submitdelete" href="'.$end_url.'">' . __('End', 'shrimptest') . '</a>';
-	}*/
+		$conclude_url = wp_nonce_url('admin.php?page=shrimptest_experiments&amp;action=conclude&amp;id=' . $experiment->experiment_id, 'conclude-experiment_' . $experiment->experiment_id);
+		$actions['end'] = '<a class="submitdelete" href="'.$conclude_url.'">' . __('Stop', 'shrimptest') . '</a>';
+	}
 	
 	$actions = apply_filters( 'shrimptest_admin_experiment_row_actions', $actions, $post );
 	$action_count = count($actions);
