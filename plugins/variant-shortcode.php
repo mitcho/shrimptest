@@ -60,12 +60,13 @@ class ShrimpTest_Variant_Shortcode {
 		update_post_meta( $post_id, $this->experiment_ids_meta_key, array_unique( $this->detected_experiment_ids ) );
 
 		$this->shortcode_replacement_count = 0;
-		$content = preg_replace_callback( '/(\['.$this->shortcode.'\s*(id=(\d+))?\s*)/', array( &$this, 'add_id_to_shortcode' ), $content, -1, $this->shortcode_replacement_count );
+		$content = preg_replace_callback( '/(\['.$this->shortcode.'\s*(id=(\d+))?\s*)/', array( &$this, 'add_id_to_shortcode' ), $content );
 
 		return $content;		
 	}
 	
 	function add_id_to_shortcode( $matches ) {
+		$this->shortcode_replacement_count++;
 		$count = $this->shortcode_replacement_count;
 		// $matches[3] is the given ID value.
 		if ( !empty( $matches[3] ) ) {
