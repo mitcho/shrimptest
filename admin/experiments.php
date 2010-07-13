@@ -17,7 +17,7 @@ if ( isset( $_GET['id'] ) ) {
 }
 
 $current_screen = 'shrimptest_experiments';
-register_column_headers($current_screen, array('id_name'=>'Experiment name','status'=>'Status','start_date'=>'Start date','metric'=>'Metric','metric_N'=>'N','metric_avg'=>'Average','zscore'=>'Z-score'));
+register_column_headers($current_screen, array('id_name'=>'Experiment name','status'=>'Status','start_date'=>'Start date','metric'=>'Metric','metric_N'=>'N','metric_avg'=>'Average','$pmessage'=>'Result'));
 
 ?>
 
@@ -96,19 +96,40 @@ foreach( $experiments as $experiment ) {
 		$assignment_percentage = round( $stat->assignment_weight / $total->assignment_weight * 1000 ) / 10;
 		if ( $key === 'total' )
 			continue;
+
+		$zscore = __( 'N/A', 'shrimptest' );
+		$pvalue = __( 'N/A', 'shrimptest' );
+		$pmessage = __( 'N/A', 'shrimptest' );
+
 		if ($key === 0) {
 			$control = $stat;
 			$name = __("Control", 'shrimptest');
-			$zscore = __( 'N/A', 'shrimptest' );
 		} else {
 			$name = __("Variant",'shrimptest') . " " . $stat->variant_id;
-			if ( isset( $control ) && $stat->N && $control->N && ( $stat->sd || $control->sd ) )
-				$zscore = ( $stat->avg - $control->avg ) / sqrt( (pow($stat->sd, 2) / ($stat->N)) + (pow($control->sd, 2) / ($control->N)) );
-			else
-				$zscore = __( 'N/A', 'shrimptest' );
+			$zscore = $this->shrimp->zscore( $variant, $stat );
+			if ( $zscore ) {
+				$type = 'better'; // "better", "different"
+				// TODO: add "worse"
+				$p = $this->shrimp->normal_cdf($zscore,($type == 'better'?'left':'middle'));
+
+				$null_p = 1 - $p;
+				$null_p = ( floor( $null_p * 1000) / 1000 );
+				$null_p = "p &lt; {$null_p}";
+				$zscore = "z = " . ( floor($zscore * 1000) / 1000 );
+
+				if ( $p >= 0.95 ) {
+					if ( $p >= 0.99 )
+						$desc = "very confident";
+					else if ( $p >= 0.95 )
+						$desc = "confident";
+					$pmessage = sprintf( "We are <strong>%s</strong> that variant %d is %s than the control. (%s, %s)", $desc, $stat->variant_id, $type, $null_p, $zscore );
+				} else {
+					$pmessage = sprintf( "We cannot confidently say whether or not variant %d is %s than the control. Perhaps there is no effect or there is not enough data. (%s)", $stat->variant_id, $type, $zscore );
+				}
+			}
 		}
 
-		echo "<tr class=\"variant\" data-experiment=\"{$experiment->experiment_id}\"><td><strong>{$name}:</strong> {$stat->variant_name} ($assignment_percentage%)</td><td colspan='3'></td><td>{$stat->N}</td><td>{$stat->avg}</td><td>$zscore</td></tr>";
+		echo "<tr class=\"variant\" data-experiment=\"{$experiment->experiment_id}\"><td><strong>{$name}:</strong> {$stat->variant_name} ($assignment_percentage%)</td><td colspan='3'></td><td>{$stat->N}</td><td>{$stat->avg}</td><td>$pmessage</td></tr>";
 
 	}
 	

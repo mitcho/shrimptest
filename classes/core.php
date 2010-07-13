@@ -259,6 +259,43 @@ class ShrimpTest {
 		return $stats;
 	}
 	
+	function zscore( $control, $variant ) {
+		if ( isset( $control ) && $variant->N && $control->N && ( $variant->sd || $control->sd ) )
+			return ( $variant->avg - $control->avg ) / sqrt( (pow($variant->sd, 2) / ($variant->N)) + (pow($control->sd, 2) / ($control->N)) );
+		else
+			return null;
+	}
+	
+	// CDF = culmulative distribution function, the integral of the probability density function (PDF)
+	function normal_cdf( $z, $type = 'middle' ) {
+
+		// first, compute the single- (right-)tailed area:
+		// \int_{z}^{+\infty} Norm(x) dx
+		$absz = abs($z);
+
+		// coefficients
+		$a1 = 0.0000053830;
+		$a2 = 0.0000488906;
+		$a3 = 0.0000380036;
+		$a4 = 0.0032776263;
+		$a5 = 0.0211410061;
+		$a6 = 0.0498673470;
+
+		$right_tail = pow(((((($a1*$absz+$a2)*$absz+$a3)*$absz+$a4)*$absz+$a5)*$absz+$a6)*$absz+1,-16) / 2;
+		if ( $z < 0 )
+			$right_tail = 1 - $right_tail;
+		
+		switch ( $type ) {
+			case 'right':
+				return $right_tail;
+			case 'left':
+				return 1 - $right_tail;
+			case 'middle':
+				return abs(1 - 2 * $right_tail);
+		}
+		
+	}
+	
 	/*
 	 * EXPERIMENT VARIANT FUNCTIONS
 	 */
