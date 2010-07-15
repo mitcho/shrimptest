@@ -19,11 +19,4 @@ $shrimptest_class = SHRIMPTEST_CLASS;
 $shrimp = new $shrimptest_class( );
 $shrimp->init();
 
-require_once SHRIMPTEST_DIR . '/classes/interface.php'; // holds the ShrimpTest_Interface class
-if ( !defined( 'SHRIMPTEST_INTERFACE_CLASS' ) )
-	define( 'SHRIMPTEST_INTERFACE_CLASS', 'ShrimpTest_Interface' );
-$shrimptest_interface_class = SHRIMPTEST_INTERFACE_CLASS;
-$shrimp_UI = new $shrimptest_interface_class( );
-$shrimp_UI->init($shrimp);
-
 require_once SHRIMPTEST_DIR . '/template-tags.php';

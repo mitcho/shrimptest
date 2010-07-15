@@ -2,8 +2,7 @@
 
 $experiment_id = (int) $_GET['id'];
 
-global $shrimp;
-$experiments = $shrimp->get_experiments( array( 'experiment_id'=>$experiment_id ) );
+$experiments = $this->model->get_experiments( array( 'experiment_id'=>$experiment_id ) );
 
 if ( !count($experiments) )
 	wp_die( __( 'This experiment was not found.', 'shrimptest' ) );
@@ -21,7 +20,6 @@ $experiment = $experiments[0];
 
 
 function shrimptest_details_metabox() {
-	global $shrimp;
 	echo "<table>";
 	echo "<tr><th>Name:</th><td></td></tr>";
 	echo "</table>";

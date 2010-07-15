@@ -1,5 +1,5 @@
 <?php 
-global $wpdb, $shrimp;
+global $wpdb;
 
 $experiment_id = (int) $_REQUEST['id'];
 $metric_id = $_POST['metric_id'];
@@ -10,7 +10,7 @@ $experiment_data = array( name => $_POST['name'],
 													metric_id => $metric_id,
 													);
 
-$this->shrimp->update_experiment( $experiment_id, $experiment_data );
+$this->model->update_experiment( $experiment_id, $experiment_data );
 
 // only the metric data for the metric_type that we've chosen matters.
 $metric_type = $_POST['metric_type'];
@@ -27,7 +27,7 @@ if ( $metric_type == 'manual' ) {
 }
 
 $metric_data = apply_filters( 'shrimptest_save_metric_' . $metric_type, $metric_data );
-$this->shrimp->update_metric( $metric_id, $metric_data );
+$this->model->update_metric( $metric_id, $metric_data );
 
 wp_redirect( admin_url("admin.php?page={$this->slug}_experiments&message=" . $this->message_success) );
 exit;

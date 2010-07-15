@@ -235,7 +235,7 @@ class ShrimpTest_Variant_Shortcode {
 			$status = $this->shrimp->get_experiment_status( $experiment_id );
 			echo $status;
 			if ( $status == 'inactive' || $status == 'reserved' ) {
-				$edit_url = "admin.php?page={$this->shrimp->interface->slug}_experiments&action=new&id={$experiment_id}";
+				$edit_url = "admin.php?page=" . $this->shrimp->get_interface_slug() . "_experiments&action=new&id={$experiment_id}";
 				echo "<div class='updated'><p>" . sprintf(__("This entry includes an inactive experiment. You must <a href='%s'>edit</a> and activate the experiment."),$edit_url) . "</p></div>";
 			}
 		}

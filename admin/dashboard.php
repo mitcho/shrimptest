@@ -16,7 +16,7 @@ if ( !current_user_can('manage_options') )
 
 function shrimptest_active_experiments_metabox() {
 	global $shrimp;
-	$experiments = $shrimp->get_active_experiments();
+	$experiments = $shrimp->model->get_active_experiments();
 	if ( !count( $experiments ) ) {
 		_e( 'There are no active experiments at this time.', 'shrimptest' );
 		return;

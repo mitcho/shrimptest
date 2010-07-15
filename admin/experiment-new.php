@@ -1,7 +1,7 @@
 <form method="post">
 <?php
 
-global $shrimp, $experiment_id, $metric_id, $experiment;
+global $experiment_id, $metric_id, $experiment;
 
 if ( isset( $_GET['id'] ) ) {
 	$experiment_id = (int) $_GET['id'];
@@ -9,9 +9,9 @@ if ( isset( $_GET['id'] ) ) {
 	wp_die('You must come in with an ID.');
 }
 
-$metric_id = $shrimp->get_metric_id( $experiment_id );
+$metric_id = $this->model->get_metric_id( $experiment_id );
 
-$experiments = $shrimp->get_experiments( array( 'experiment_id'=>$experiment_id, 'status'=>array('inactive','reserved') ) );
+$experiments = $this->model->get_experiments( array( 'experiment_id'=>$experiment_id, 'status'=>array('inactive','reserved') ) );
 
 if ( !count($experiments) )
 	wp_die( __( 'This experiment was not found.', 'shrimptest' ) );
@@ -28,7 +28,6 @@ $experiment = $experiments[0];
 
 
 function shrimptest_details_metabox( ) {
-	global $shrimp;
 ?>
 <table class='shrimptest'>
 <tr><th><?php _e('Name:','shrimptest');?></th><td><input name="name" type="text" maxlength="255" size="50"></input></td></tr>
@@ -37,9 +36,9 @@ function shrimptest_details_metabox( ) {
 }
 
 function shrimptest_variants_metabox( ) {
-	global $shrimp, $experiment;
+	global $experiment, $shrimp;
 	
-	$types = $shrimp->get_variant_types_to_edit( $experiment->variants_type );
+	$types = $shrimp->model->get_variant_types_to_edit( $experiment->variants_type );
 	
 	if ( array_search( $experiment->variants_type, array_keys( $types ) ) === false )
 		wp_die( sprintf("The variant type code <code>%s</code> is not currently registered. This experiment cannot be edited nor activated.", $experiment->variants_type ) );
@@ -60,7 +59,7 @@ foreach ( $types as $code => $type ) {
 <?php
 do_action( 'shrimptest_add_variant_extra', $variant, $experiment );
 
-	$variants = $shrimp->get_experiment_variants( $experiment->experiment_id );
+	$variants = $shrimp->model->get_experiment_variants( $experiment->experiment_id );
 	if ( empty( $variants ) )
 		$variants = array( (object) array( 'variant_id'=>0 ), (object) array( 'variant_id'=>1 ) );
 ?>
@@ -84,10 +83,10 @@ do_action( 'shrimptest_add_variant_extra', $variant, $experiment );
 }
 
 function shrimptest_metric_metabox( ) {
-	global $shrimp, $experiment_id, $experiment, $metric_id;
-	$metric = $shrimp->get_metric( $metric_id );
+	global $experiment_id, $experiment, $metric_id, $shrimp;
+	$metric = $shrimp->model->get_metric( $metric_id );
 	
-	$types = $shrimp->get_metric_types_to_edit( $experiment->metric_type );
+	$types = $shrimp->model->get_metric_types_to_edit( $experiment->metric_type );
 	
 	if ( array_search( $experiment->metric_type, array_keys( $types ) ) === false )
 		wp_die( sprintf("The metric type code <code>%s</code> is not currently registered. This experiment cannot be edited nor activated.", $experiment->metric_type ) );

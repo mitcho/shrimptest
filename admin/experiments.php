@@ -44,11 +44,9 @@ register_column_headers($current_screen, array('id_name'=>'Experiment name','sta
 $status_strings = array( 'active'=>__('Active','shrimptest'), 'finished'=>__('Finished','shrimptest'), 'inactive'=>__('Not yet started','shrimptest') );
 $date_format = get_option('date_format');
 
-global $shrimp;
-
-$experiments = $shrimp->get_experiments( array( 'status' => array( 'inactive', 'active', 'finished' ) ) );
+$experiments = $this->model->get_experiments( array( 'status' => array( 'inactive', 'active', 'finished' ) ) );
 foreach( $experiments as $experiment ) {
-	$stats = $shrimp->get_experiment_stats( $experiment->experiment_id );
+	$stats = $this->model->get_experiment_stats( $experiment->experiment_id );
 	$total = $stats["total"];
 
 	$status = $status_strings[$experiment->status];
@@ -106,11 +104,11 @@ foreach( $experiments as $experiment ) {
 			$name = __("Control", 'shrimptest');
 		} else {
 			$name = __("Variant",'shrimptest') . " " . $stat->variant_id;
-			$zscore = $this->shrimp->zscore( $variant, $stat );
+			$zscore = $this->model->zscore( $variant, $stat );
 			if ( $zscore ) {
 				$type = 'better'; // "better", "different"
 				// TODO: add "worse"
-				$p = $this->shrimp->normal_cdf($zscore,($type == 'better'?'left':'middle'));
+				$p = $this->model->normal_cdf($zscore,($type == 'better'?'left':'middle'));
 
 				$null_p = 1 - $p;
 				$null_p = ( floor( $null_p * 1000) / 1000 );

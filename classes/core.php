@@ -9,7 +9,6 @@ class ShrimpTest {
 	// some constants based on WordPress install:
 	var $cookie_domain;
 	var $cookie_path;
-	var $db_prefix;
 	
 	// should be configurable:
 	var $cookie_name;
@@ -25,9 +24,10 @@ class ShrimpTest {
 	var $touched_experiments;
 	var $touched_metrics;
 	var $override_variants;
-	
-	var $variant_types;
-	var $metric_types;
+		
+	// references to the Interface and Model objects
+	var $interface = null;
+	var $model = null;
 
 	function ShrimpTest( ) {
 		// Hint: run init( ) to get the party started.
@@ -40,19 +40,18 @@ class ShrimpTest {
 		$this->cookie_domain = apply_filters( 'shrimptest_cookie_domain', COOKIE_DOMAIN );
 		$this->cookie_path   = apply_filters( 'shrimptest_cookie_path', COOKIEPATH );
 		$this->cookie_name   = apply_filters( 'shrimptest_cookie_name', 'ebisen' );
-		$this->db_prefix     = apply_filters( 'shrimptest_db_prefix', "{$wpdb->prefix}shrimptest_" );
 		$this->cookie_dough	 = COOKIEHASH;
 		$this->cookie_days   = apply_filters( 'shrimptest_cookie_days', 365 );
+
+		$this->load_model_and_interface( );
+		$this->load_plugins( );
 
 		add_action( 'init', array( &$this, 'versioning' ) );
 		add_action( 'init', array( &$this, 'check_cookie' ) );
 
 		add_action( 'wp_footer', array( &$this, 'print_foot' ) );
-		add_action( 'wp_footer', array( &$this, 'record_touched' ) );
 		add_action( 'wp_ajax_shrimptest_record', array( &$this, 'record_cookieability' ) );
 		add_action( 'wp_ajax_nopriv_shrimptest_record', array( &$this, 'record_cookieability' ) );
-
-		$this->load_plugins( );
 
 		add_action( 'wp_ajax_shrimptest_override_variant', array( &$this, 'override_variant' ) );
 		
@@ -60,9 +59,26 @@ class ShrimpTest {
 		
 	}
 	
+	function load_model_and_interface( ) {
+		require_once SHRIMPTEST_DIR . '/classes/model.php'; // holds the ShrimpTest_Model class
+		if ( !defined( 'SHRIMPTEST_MODEL_CLASS' ) )
+			define( 'SHRIMPTEST_MODEL_CLASS', 'ShrimpTest_Model' );
+		$shrimptest_model_class = SHRIMPTEST_MODEL_CLASS;
+		$shrimp_model = new $shrimptest_model_class( );
+		$shrimp_model->init($this);
+		$this->model = &$shrimp_model;
+		
+		require_once SHRIMPTEST_DIR . '/classes/interface.php'; // holds the ShrimpTest_Interface class
+		if ( !defined( 'SHRIMPTEST_INTERFACE_CLASS' ) )
+			define( 'SHRIMPTEST_INTERFACE_CLASS', 'ShrimpTest_Interface' );
+		$shrimptest_interface_class = SHRIMPTEST_INTERFACE_CLASS;
+		$shrimp_interface = new $shrimptest_interface_class( );
+		$shrimp_interface->init($this);
+		$this->interface = &$shrimp_interface;
+		$shrimp_interface->model = &$shrimp_model; // Interface is given a reference to Model
+	}
+	
 	function load_plugins( ) {
-		$this->metric_types = array( (object) array( 'code' => 'manual', 'name' => 'Manual (PHP required)' ) );
-		$this->variant_types = array( (object) array( 'code' => 'manual', 'name' => 'Manual (PHP required)' ) );
 		foreach ( glob( SHRIMPTEST_DIR . '/plugins/*.php' ) as $plugin ) {
 
 			// plugins must have the prefix plugin-, metric-, or variant-.
@@ -81,369 +97,19 @@ class ShrimpTest {
 				$object->init( &$this );
 				
 				if ( stripos( $export_class, 'variant' ) ) {
-					if ( array_search( $object->code, array_keys( $this->variant_types ) ) )
+					if ( array_search( $object->code, array_keys( $this->model->variant_types ) ) )
 						wp_die( sprintf( "The variant type code <code>%s</code> has already been registered.", $code ) );
-					$this->variant_types[] = $object;
+					$this->model->variant_types[] = $object;
 				}
 	
 				if ( stripos( $export_class, 'metric' ) ) {
-					if ( array_search( $object->code, array_keys( $this->metric_types ) ) )
+					if ( array_search( $object->code, array_keys( $this->model->metric_types ) ) )
 						wp_die( sprintf( "The metric type code <code>%s</code> has already been registered.", $code ) );
-					$this->metric_types[] = $object;
+					$this->model->metric_types[] = $object;
 				}
 			}
 
 		}
-	}
-	
-	/*
-	 * AGGREGATE EXPERIMENT FUNCTIONS
-	 */
-	
-	function get_active_experiments( ) {
-		return $this->get_experiments( array('status'=>'active') );
-	}
-	
-	function get_experiments( $args = array( ) ) {
-		global $wpdb;
-		$defaults = array(
-			'status' => '',
-			'offset' => 0,
-			'orderby' => 'start_time',
-			'order' => 'ASC',
-		);
-		$r = wp_parse_args( $args, $defaults );
-		
-		$sql = 
-		"select experiment_id, e.name as experiment_name, variants_type, m.name as metric_name, m.type as metric_type, status, 
-		unix_timestamp(start_time) as start_time, unix_timestamp(end_time) as end_time, unix_timestamp(now()) as now
-		from {$this->db_prefix}experiments as e
-		left join {$this->db_prefix}metrics as m using (`metric_id`)
-		where 1";
-		
-		if ( !empty( $r['experiment_id'] ) )
-			$sql .= " and experiment_id = {$r[experiment_id]}";
-		
-		if ( !empty( $r['status'] ) ) {
-			if ( is_array( $r['status'] ) )
-				$status = $r['status'];
-			else
-				$status = array( $r['status'] );
-			$sql .= " and status in ('".implode("','",$status)."')";
-		}
-		
-		$sql .= " order by {$r['orderby']} {$r['order']}";
-
-		return $wpdb->get_results( $sql );
-	}
-
-	/*
-	 * INDIVIDUAL EXPERIMENT FUNCTIONS
-	 */
-
-	function get_experiment( $experiment_id ) {
-		global $wpdb;
-		return $wpdb->get_row( "select * from {$this->db_prefix}experiments where experiment_id = {$experiment_id}" );
-	}
-	
-	function update_experiment( $experiment_id, $experiment_data ) {
-		global $wpdb;
-
-		// update shrimptest_experimensts
-		extract( $experiment_data );
-		$wpdb->query( $wpdb->prepare( "update {$this->db_prefix}experiments "
-																	. "set name = %s, variants_type = %s, metric_id = %d "
-																	. "where experiment_id = %d",
-																	$name, $variants_type, $metric_id, $experiment_id ) );
-
-		// update shrimptest_experiments_variants		
-		foreach ( $variants as $variant_id => $variant_data )
-			$this->update_experiment_variant( $experiment_id, $variant_id, $variant_data );
-		$variant_count = count( $variants );
-		$wpdb->query( $wpdb->prepare( "delete from {$this->db_prefix}experiments_variants "
-																	. "where experiment_id = %d and variant_id >= %d",
-																	$experiment_id, $variant_count ) );
-		
-		if ( true ) // TODO: if enough information
-			$this->update_experiment_status( $experiment_id, 'inactive' );
-	}
-	
-	function delete_experiment( $experiment_id, $force = false ) {
-		global $wpdb;
-		
-		if ( !$force && $this->get_experiment_status( $experiment_id ) == 'active' )
-			wp_die( sprintf( "Experiment %d cannot be deleted as it is currently active.", $experiment_id ) );
-		
-		$wpdb->query( $wpdb->prepare( 
-			"delete from {$this->db_prefix}experiments_variants where `experiment_id` = %d", 
-			$experiment_id ) );
-		$wpdb->query( $wpdb->prepare( 
-			"delete from {$this->db_prefix}visitors_variants where `experiment_id` = %d", 
-			$experiment_id ) );
-
-		$metric = $wpdb->get_var( 
-			$wpdb->prepare( "select metric_id from {$this->db_prefix}experiments where `experiment_id` = %d", 
-			$experiment_id ) );
-
-		$deleted = $wpdb->query( $wpdb->prepare( 
-			"delete from {$this->db_prefix}experiments where `experiment_id` = %d", 
-			$experiment_id ) );
-
-		if ( !is_null( $metric ) )
-			$this->delete_metric( $metric );
-			
-		return $deleted;
-	}
-	
-	function get_experiment_status( $experiment_id ) {
-		global $wpdb;
-		return $wpdb->get_var( "select status from {$this->db_prefix}experiments where experiment_id = {$experiment_id}" );
-	}
-
-	function update_experiment_status( $experiment_id, $status ) {
-		global $wpdb;
-		$data = compact( 'status' );
-		$where = compact( 'experiment_id' );
-		$wpdb->update( "{$this->db_prefix}experiments", $data, $where, '%s', '%d' );
-	}
-
-	function update_variants_type( $experiment_id, $variants_type ) {
-		global $wpdb;
-		$data = compact( 'variants_type' );
-		$where = compact( 'experiment_id' );
-		$wpdb->update( "{$this->db_prefix}experiments", $data, $where, '%s', '%d' );		
-	}
-	
-	function get_experiment_stats( $experiment_id ) {
-		global $wpdb;
-
-		$metric_type = $wpdb->get_var( "select type from {$this->db_prefix}metrics join {$this->db_prefix}experiments using (`metric_id`) where experiment_id = {$experiment_id}" );
-		
-		$metric_id = $wpdb->get_var("select metric_id from {$this->db_prefix}experiments where experiment_id = $experiment_id");
-		$metric = $this->get_metric( $metric_id );
-		
-		$value = "value";
-
-		if ( $metric->data['ifnull'] )
-			$value = "ifnull(value,{$metric->data['nullvalue']})";
-
-		if ( $metric->data['direction'] == 'larger' )
-			$value = "max({$value})";
-		else
-			$value = "min({$value})";
-			
-		$value = apply_filters( 'shrimptest_get_stats_value_' . $metric->type, $value );
-		
-		$unique = "if(cookies = 1, v.visitor_id, concat(ip,user_agent))";
-	
-		$uvsql = "SELECT experiment_id, variant_id, count(distinct variant_id) as variant_count, {$value} as value, {$unique} as unique_visitor_id"
-		       . " FROM `{$this->db_prefix}visitors_variants` as vv "
-		       . " join `{$this->db_prefix}visitors` as v using (`visitor_id`)"
-		       . " left join `{$this->db_prefix}visitors_metrics` as vm"
-		       . " on (vm.visitor_id = vv.visitor_id and vm.metric_id = {$metric_id})"
-		       . " where vv.experiment_id = {$experiment_id}"
-		       . " group by unique_visitor_id"
-		       . " having variant_count = 1";
-		$total_sql = "select count(unique_visitor_id) as N, avg(value) as avg, stddev(value) as sd from ({$uvsql}) as uv";
-		$stats = array();
-		$stats['total'] = $wpdb->get_row( $total_sql );
-		
-		$stats['total']->assignment_weight = $wpdb->get_var( $wpdb->prepare( "select sum(assignment_weight) from {$this->db_prefix}experiments_variants where experiment_id = %d", $experiment_id ) );
-		
-		$variant_sql = "select ev.variant_id, variant_name, assignment_weight, count(unique_visitor_id) as N, avg(value) as avg, stddev(value) as sd from {$this->db_prefix}experiments_variants as ev left join ({$uvsql}) as uv on (ev.experiment_id = uv.experiment_id and ev.variant_id = uv.variant_id) where ev.experiment_id = {$experiment_id} group by variant_id order by variant_id asc";
-		$variant_stats = $wpdb->get_results( $variant_sql );
-		foreach ( $variant_stats as $variant ) {
-			$stats[$variant->variant_id] = $variant;
-		}
-		
-		return $stats;
-	}
-	
-	function zscore( $control, $variant ) {
-		if ( isset( $control ) && $variant->N && $control->N && ( $variant->sd || $control->sd ) )
-			return ( $variant->avg - $control->avg ) / sqrt( (pow($variant->sd, 2) / ($variant->N)) + (pow($control->sd, 2) / ($control->N)) );
-		else
-			return null;
-	}
-	
-	// CDF = culmulative distribution function, the integral of the probability density function (PDF)
-	function normal_cdf( $z, $type = 'middle' ) {
-
-		// first, compute the single- (right-)tailed area:
-		// \int_{z}^{+\infty} Norm(x) dx
-		$absz = abs($z);
-
-		// coefficients
-		$a1 = 0.0000053830;
-		$a2 = 0.0000488906;
-		$a3 = 0.0000380036;
-		$a4 = 0.0032776263;
-		$a5 = 0.0211410061;
-		$a6 = 0.0498673470;
-
-		$right_tail = pow(((((($a1*$absz+$a2)*$absz+$a3)*$absz+$a4)*$absz+$a5)*$absz+$a6)*$absz+1,-16) / 2;
-		if ( $z < 0 )
-			$right_tail = 1 - $right_tail;
-		
-		switch ( $type ) {
-			case 'right':
-				return $right_tail;
-			case 'left':
-				return 1 - $right_tail;
-			case 'middle':
-				return abs(1 - 2 * $right_tail);
-		}
-		
-	}
-	
-	/*
-	 * EXPERIMENT VARIANT FUNCTIONS
-	 */
-	
-	/*
-	 * get_experiment_variants: get a list of variants for the current experiment
-	 */
-	function get_experiment_variants( $experiment_id ) {
-		global $wpdb;
-		$results = $wpdb->get_results( "select variant_id, variant_name, assignment_weight, data 
-																from `{$this->db_prefix}experiments_variants`
-																where `experiment_id` = {$experiment_id}" );
-		foreach ( $results as $key => $variant ) {
-			if ( isset( $results[$key]->data ) )
-				$results[$key]->data = unserialize( $results[$key]->data );
-		}
-		return $results;
-	}
-	
-	function get_experiment_variant( $experiment_id, $variant_id ) {
-		global $wpdb;
-		$variant = $wpdb->get_row( "select variant_id, variant_name, assignment_weight, data 
-																from `{$this->db_prefix}experiments_variants`
-																where `experiment_id` = {$experiment_id} and `variant_id` = {$variant_id}" );
-		if ( isset( $variant->data ) )
-			$variant->data = unserialize( $variant->data );
-		return $variant;
-	}
-	
-	function delete_experiment_variant( $experiment_id, $variant_id ) {
-		global $wpdb;
-		$wpdb->query( $wpdb->prepare( "delete from {$this->db_prefix}experiments_variants where where `experiment_id` = %d and `variant_id` = %d", $experiment_id, $variant_id ) );
-	}
-	
-	function update_experiment_variant( $experiment_id, $variant_id, $variant_data ) {
-		global $wpdb;
-
-		extract( $variant_data );
-		if ( !isset( $name ) || !isset( $assignment_weight ) || empty( $assignment_weight ) )
-			wp_die( 'The variant must have a <code>name</code> and a non-zero <code>assignment_weight</code>' );
-		
-		unset( $variant_data['name'], $variant_data['assignment_weight'] );
-		$data = '';
-		if ( !empty( $variant_data ) )
-			$data = serialize( $variant_data );
-		$wpdb->query( $wpdb->prepare( "insert into {$this->db_prefix}experiments_variants "
-																	. "(experiment_id, variant_id, variant_name, assignment_weight, data) "
-																	. "values (%d, %d, %s, %d, %s) "
-																	. "on duplicate key update variant_name = %s, assignment_weight = %d, data = %s",
-																	$experiment_id, $variant_id, $name, $assignment_weight, $data,
-																	$name, $assignment_weight, $data ) );
-	}
-	
-	/*
-	 * AGGREGATE METRIC FUNCTIONS
-	 */
-	
-	function get_metrics( $args = array() ) {
-		global $wpdb;
-		$defaults = array(
-			'type' => '',
-			'offset' => 0,
-			'orderby' => 'metric_id',
-			'order' => 'ASC',
-		);
-		$r = wp_parse_args( $args, $defaults );
-		$sql = "select metric_id, name, type, data, timestamp "
-					. "from `{$this->db_prefix}metrics` "
-					. "where 1 ";
-
-		if ( !empty( $r['metric_id'] ) ) {
-			if ( !is_array( $r['metric_id'] ) )
-				$r['metric_id'] = array( $r['metric_id'] );
-			$sql .= "and metric_id in ('".join("','",$r['metric_id'])."') ";
-		}
-
-		if ( !empty( $r['type'] ) ) {
-			if ( !is_array( $r['type'] ) )
-				$r['type'] = array( $r['type'] );
-			$sql .= "and type in ('".join("','",$r['type'])."') ";
-		}
-
-		$metrics = $wpdb->get_results( $sql );
-		foreach ( array_keys( $metrics ) as $key ) {
-			if ( isset( $metrics[$key]->data ) )
-				$metrics[$key]->data = unserialize( $metrics[$key]->data );
-		}
-		
-		return $metrics;
-	}
-	
-	/*
-	 * METRIC FUNCTIONS
-	 */
-	
-	function get_metric( $metric_id ) {
-		global $wpdb;
-		$metric = $wpdb->get_row( "select metric_id, name, type, data, timestamp
-																from `{$this->db_prefix}metrics`
-																where `metric_id` = {$metric_id}" );
-		if ( isset( $metric->data ) )
-			$metric->data = unserialize( $metric->data );
-		return $metric;
-	}
-	
-	function update_metric( $metric_id, $metric_data ) {
-		global $wpdb;
-
-		// data validation
-		if ( !isset( $metric_data['ifnull'] ) || !isset( $metric_data['nullvalue'] )
-		                                      || !isset( $metric_data['direction'] ) )
-			wp_die( 'Metric data must include <code>ifnull</code>, <code>nullvalue</code>, and <code>direction</code> values.' );
-
-		extract( $metric_data );
-		unset( $metric_data['name'], $metric_data['type'] );
-		$data = '';
-		if ( !empty( $metric_data ) )
-			$data = serialize( $metric_data );
-		$wpdb->query( $wpdb->prepare( "update {$this->db_prefix}metrics "
-																	. "set name = %s, type = %s, data = %s "
-																	. "where metric_id = %d",
-																	$name, $type, $data, $metric_id ) );		
-	}
-	
-	function delete_metric( $metric_id, $force = false ) {
-		global $wpdb;
-
-		// metric_id 0 is just a placeholder
-		if ( $metric_id == 0 )
-			return;
-
-		if ( !$force ) {
-			$experiments = $wpdb->get_var( $wpdb->prepare( 
-				"select group_concat(experiment_id) from {$this->db_prefix}experiments where metric_id = %d",
-				$metric_id) );
-			if ( $experiments )
-				wp_die( sprintf( "Metric %d cannot be deleted as it is currently in use. (Experiments: %s)",
-				$metric_id, $experiments ) );
-		}
-
-		$wpdb->query( $wpdb->prepare( 
-			"delete from {$this->db_prefix}visitors_metrics where `metric_id` = %d", 
-			$metric_id ) );
-
-		return $wpdb->query( $wpdb->prepare( 
-			"delete from {$this->db_prefix}metrics where `metric_id` = %d", 
-			$metric_id ) );
-		
 	}
 	
 	/*
@@ -470,12 +136,12 @@ class ShrimpTest {
 			$this->visitor_cookie = $_COOKIE[$this->cookie_name];
 			
 			// verify that it's actually registered with us, by getting its visitor_id.
-			$sql = "select visitor_id, cookies from {$this->db_prefix}visitors where cookie = X'{$this->visitor_cookie}'";
+			$sql = "select visitor_id, cookies from {$this->model->db_prefix}visitors where cookie = X'{$this->visitor_cookie}'";
 			$this->visitor_id = $wpdb->get_var( $sql, 0 );
 			
 			// if cookie valid but visitor is marked as not having cookie support, correct that.
 			if ( $this->visitor_id && $wpdb->get_var( $sql, 1 ) == 0 ) {
-				$wpdb->query( "update `{$this->db_prefix}visitors` 
+				$wpdb->query( "update `{$this->model->db_prefix}visitors` 
 											 set cookies = 1
 											 where visitor_id = {$this->visitor_id}" );
 			}
@@ -500,7 +166,7 @@ class ShrimpTest {
 			// hash_hmac always available via compat
 			$cookie = hash_hmac( 'md5', time() . mt_rand(), $this->cookie_dough );
 			// if not found, $keepgoing will be false.
-			$keepgoing = $wpdb->get_var( "select id from `{$this->db_prefix}visitors` where cookie = X'{$cookie}'" );
+			$keepgoing = $wpdb->get_var( "select id from `{$this->model->db_prefix}visitors` where cookie = X'{$cookie}'" );
 		} while ( $keepgoing );
 		
 		$success = setcookie( $this->cookie_name, $cookie, time() + 60*60*24*$this->cookie_days, $this->cookie_path, $this->cookie_domain );
@@ -508,7 +174,7 @@ class ShrimpTest {
 		if ( $success ) {
 			$user_agent = $_SERVER['HTTP_USER_AGENT'];
 			$ip = $_SERVER['REMOTE_ADDR'];
-			$wpdb->query( "insert into `{$this->db_prefix}visitors` (`cookie`,`user_agent`,`ip`) values (X'{$cookie}','{$user_agent}',inet_aton('{$ip}'))" );
+			$wpdb->query( "insert into `{$this->model->db_prefix}visitors` (`cookie`,`user_agent`,`ip`) values (X'{$cookie}','{$user_agent}',inet_aton('{$ip}'))" );
 			$this->visitor_id = $wpdb->insert_id;
 			$this->visitor_cookie = $cookie;
 			return $id;
@@ -546,108 +212,7 @@ class ShrimpTest {
 		$exempt = apply_filters( 'shrimptest_exempt_visitor', $exempt );
 		return $exempt;
 	}
-		
-	/*
-	 * update_visitor_metric
-	 * @param boolean $monotonic - if true, will only update if value is greater
-	 */ 
-	function update_visitor_metric( $metric_id, $value, $monotonic = false, $visitor_id = false ) {
-		global $wpdb;
 
-		// if the user is exempt (like a logged in admin), return control.
-		if ( $this->exempt_visitor( ) ) {
-			$this->touch_metric( $metric_id, array( 'value' => null ) );
-			return null;
-		}
-
-		if ( !$visitor_id )
-			$visitor_id = $this->visitor_id;
-		if ( is_null( $visitor_id ) )
-			return null;
-
-		// TODO: validate metric id and/or $value
-		
-		$sql = "insert into `{$this->db_prefix}visitors_metrics`
-						  (`visitor_id`, `metric_id`, `value`)
-						  values ({$visitor_id}, {$metric_id}, {$value})
-						on duplicate key update `value` = "
-						. ( $monotonic ? "greatest({$value},value)" : $value );
-
-		$this->touch_metric( $metric_id, array( 'value' => $value ) );
-
-		return $wpdb->query( $sql );
-	}
-
-	// NOTE: getting the value of a metric for an individual visitor...
-	// I wrote it, but does this really have a use case?
-	function get_visitor_metric( $metric_id, $visitor_id = false ) {
-		global $wpdb;
-
-		if ( !$visitor_id )
-			$visitor_id = $this->visitor_id;
-		if ( is_null( $visitor_id ) )
-			return null;
-
-		// TODO: validate metric id
-		
-		return $wpdb->get_var( "select value from `{$this->db_prefix}visitors_metrics`
-														where `visitor_id` = {$visitor_id}" );
-	}
-
-	function get_cache_visitor_variants_string( ) {
-		global $wpdb, $wp_super_cache_debug;
-
-		if ( is_null( $this->visitor_id ) )
-			$this->check_cookie( );
-		$visitor_id = $this->visitor_id;
-		if ( is_null( $visitor_id ) )
-			return 'no visitor id';
-
-		$variants = $wpdb->get_results( $wpdb->prepare(
-			"select ifnull(rt.experiment_id,if(rt.metric_id is not null,'metric',null)) as experiment_id, variant_id from {$this->db_prefix}request_touches as rt "
-			."left join {$this->db_prefix}experiments as e using (experiment_id) "
-			."left join {$this->db_prefix}visitors_variants as vv on (rt.experiment_id = vv.experiment_id and vv.visitor_id = %s) "
-			."where request = %s order by experiment_id asc", $visitor_id, $this->request_uri( ) ) );
-
-		if ( isset( $wp_super_cache_debug ) && $wp_super_cache_debug ) wp_cache_debug( "ShrimpTest: variants data: $wpdb->last_query\n".var_export($variants, true), 5 );
-
-		if ( !count( $variants ) )
-			return 'calculating experiments list';
-
-		$variant_strings = array();
-		foreach ($variants as $variant) {
-
-			// if an experiment_id is null, that means there were no experiments on this page.
-			if ( $variant->experiment_id == null )
-				return 'no experiments on this page';
-		
-			// if there's a metric recorded on this page, we want to not cache it.
-			if ( $variant->experiment_id == 'metric' )
-				return 'metric';
-		
-			if ( $variant->variant_id !== null ) {
-				$variant_id = $variant->variant_id;
-			} else {
-				$variant_id = $this->get_visitor_variant( $variant->experiment_id );
-				if ( $variant_id !== null )
-					return 'calculating experiments list';
-			}
-			// only add the string if it's non-null
-			if ( $variant_id !== null )
-				$variant_strings[] = $variant->experiment_id . ':' . $variant_id;
-		}
-
-		if ( count( $variant_strings ) )
-			return join(';', $variant_strings);
-		else
-			return 'calculating experiments list';
-	}
-	
-	/*
-	 * get_visitor_variant: get the variant for the given experiment and visitor
-	 *
-	 * @uses w_rand
-	 */
 	function get_visitor_variant( $experiment_id, $visitor_id = false ) {
 		global $wpdb;
 
@@ -663,40 +228,36 @@ class ShrimpTest {
 			$visitor_id = $this->visitor_id;
 		if ( is_null( $visitor_id ) )
 			return null;
-			
-		// if the experiment is not turned on, use the control.
-		if ( $this->get_experiment_status( $experiment_id ) != 'active' ) {
-			$this->touch_experiment( $experiment_id, array( 'variant' => null ) );
+
+		return $this->model->get_visitor_variant( $experiment_id, $visitor_id );
+	}
+	
+	/*
+	 * update_visitor_metric
+	 * @param int     $metric_id
+	 * @param float   $value
+	 * @param boolean $monotonic - if true, will only update if the value is greater (optional)
+	 * @param int     $visitor_id
+	 */ 
+	function update_visitor_metric( $metric_id, $value, $monotonic = false, $visitor_id = false ) {
+		global $wpdb;
+
+		// if the user is exempt (like a logged in admin), return control.
+		if ( $this->exempt_visitor( ) ) {
+			$this->touch_metric( $metric_id, array( 'value' => null ) );
 			return null;
 		}
 
-		$variant = $wpdb->get_var( "select variant_id from `{$this->db_prefix}visitors_variants`
-																where `experiment_id` = {$experiment_id}
-																and `visitor_id` = {$visitor_id}" );
+		if ( !$visitor_id )
+			$visitor_id = $this->visitor_id;
+		if ( is_null( $visitor_id ) )
+			return null;
 
-		if ( is_null( $variant ) ) { // the variant hasn't been set yet.
-			$sql = "select variant_id, assignment_weight
-							from {$this->db_prefix}experiments_variants
-							where experiment_id = {$experiment_id}";
-			$variants = $wpdb->get_col( $sql, 0 );
-			$weights  = $wpdb->get_col( $sql, 1 );
-			
-			// there is no such experiment or no variants
-			if ( !is_array($variants) || !count($variants) )
-				return null;
-
-			// use the weighted rand (w_rand) method to get a random variant
-			$variant = $this->w_rand( array_combine( $variants, $weights ) );
-			
-			$wpdb->query( "insert into `{$this->db_prefix}visitors_variants`
-										(`visitor_id`,`experiment_id`,`variant_id`)
-										values ({$visitor_id},{$experiment_id},{$variant})" );
-		}
+		$this->touch_metric( $metric_id, array( 'value' => $value ) );
 		
-		$this->touch_experiment( $experiment_id, array( 'variant' => $variant ) );
-		return $variant;
+		return $this->model->update_visitor_metric( $metric_id, $value, $monotonic, $visitor_id );
 	}
-	
+
 	function get_override_variant( $experiment_id ) {
 		global $user_ID;
 		get_currentuserinfo();
@@ -707,31 +268,6 @@ class ShrimpTest {
 			return (int) $this->override_variants[$experiment_id];
 		else
 			return 0; // control
-	}
-
-	/*
-	 * w_rand: takes an associated array with numerical values and returns a weighted-random key
-	 * Based on code from http://20bits.com/articles/random-weighted-elements-in-php/
-	 *
-	 * required for get_visitor_variant()
-	 */
-	function w_rand($weights) {
-
-		// normalize the weights first so that they sum to 1
-		$sum = array_sum($weights);
-		foreach ( $weights as $k => $w ) {
-			$weights[$k] = $w / $sum;
-		}
-		
-		// pick 
-		$r = mt_rand( 1, 1000 );
-		$offset = 0;
-		foreach ( $weights as $k => $w ) {
-			$offset += $w * 1000;
-			if ( $r <= $offset ) {
-				return $k;
-			}
-		}
 	}
 
 	/*
@@ -772,88 +308,7 @@ class ShrimpTest {
 		$touched_metrics = $this->get_touched_metrics();
 		return ( !empty( $touched_experiments ) || !empty( $touched_metrics ) );
 	}
-	
-	function request_uri( ) {
-		$uri = $_SERVER['SERVER_NAME'] . $_SERVER['SERVER_PORT'] . $_SERVER['REQUEST_URI'];
-		return apply_filters( 'shrimptest_request_uri', $uri );
-	}
-	
-	function record_touched( $force = false ) {
-		global $wpdb, $wp_super_cache_debug;
 		
-		// if it's an admin, ajax, or feed call that doesn't need to be 
-		if ( $this->blocked_visit( ) || apply_filters( 'shrimptest_record_touched_is_404', is_404( ) ) )
-			return;
-		
-		// if this isn't a real visitor
-		if ( is_null( $this->visitor_id ) )
-			return;
-		
-		$request = $this->request_uri( );
-		
-		if ( isset( $wp_super_cache_debug ) && $wp_super_cache_debug ) wp_cache_debug( "ShrimpTest: record_touched: $request", 5 );
-		
-		$cache = $wpdb->get_row( $wpdb->prepare("select group_concat(distinct experiment_id order by experiment_id asc) as experiments, group_concat(distinct metric_id order by metric_id asc) as metrics, count(request) as entries from {$this->db_prefix}request_touches where request = %s", $request ) );
-
-		// if we want to force a recording, don't worry about this.
-		// alternatively, if there are no rows, also don't worry about it.
-		if ( !$force && $cache->entries ) {
-			$experiments = $this->get_touched_experiments( );
-			if ( $experiments ) {
-				$experiments = array_keys( $experiments );
-				sort( $experiments );
-			} else {
-				$experiments = array();
-			}
-			
-			$metrics = $this->get_touched_metrics( );
-			if ( $metrics ) {
-				$metrics = array_keys( $metrics );
-				sort( $metrics );
-			} else {
-				$metrics = array();
-			}
-
-			// if the ids are the same as in the cache, return
-			if ( join( ',', $experiments ) == $cache->experiments
-				&& join( ',', $metrics ) == $cache->metrics ) {
-				if ( isset( $wp_super_cache_debug ) && $wp_super_cache_debug ) wp_cache_debug( "ShrimpTest: not record_touch-ing because the cache is already good.", 5 );
-				return;
-			}
-		}
-
-		if ( isset( $wp_super_cache_debug ) && $wp_super_cache_debug ) wp_cache_debug( "ShrimpTest: record_touched: recording", 5 );
-		
-		// if we're still here, let's reset the request_touches cache and insert new entries.
-		if ( $cache->entries ) {
-			$wpdb->query( $wpdb->prepare( "delete from {$this->db_prefix}request_touches where request = %s", $request ) );
-			if ( isset( $wp_super_cache_debug ) && $wp_super_cache_debug ) wp_cache_debug( "ShrimpTest: record_touched SQL: $wpdb->last_query", 5 );
-		}
-		
-		if ( !$this->has_been_touched( ) ) {
-			$table = "{$this->db_prefix}request_touches";
-			$data = array( 'request' => $request );
-			$wpdb->insert( $table, $data, '%s' );
-			if ( isset( $wp_super_cache_debug ) && $wp_super_cache_debug ) wp_cache_debug( "ShrimpTest: record_touched SQL: $wpdb->last_query; $wpdb->rows_affected", 5 );
-			return;
-		} else {
-			$values = array();
-			$escaped_request = $wpdb->escape( $request );
-			$experiments = $this->get_touched_experiments( );
-			if ( !empty( $experiments ) ) {
-				foreach( array_keys( $experiments ) as $experiment_id )
-					$values[] = "( '$escaped_request', '{$experiment_id}', null )";
-			}
-			$metrics = $this->get_touched_metrics( );
-			if ( !empty( $metrics ) ) {
-				foreach( array_keys( $metrics ) as $metric_id )
-					$values[] = "( '$escaped_request', null, '{$metric_id}' )";
-			}
-			$wpdb->query( "insert into {$this->db_prefix}request_touches ( request, experiment_id, metric_id ) values " . join( ',', $values ) );
-			if ( isset( $wp_super_cache_debug ) && $wp_super_cache_debug ) wp_cache_debug( "ShrimpTest: record_touched SQL: $wpdb->last_query; $wpdb->rows_affected", 5 );
-		}
-	}
-	
 	function print_foot( ) {
 		global $wpdb;
 
@@ -927,59 +382,9 @@ setTimeout(function() {
 			echo "<script type=\"text/javascript\">window.history.back();</script>";
 		exit;
 	}
-
-	function get_reserved_experiment_id( ) {
-		global $wpdb;
-		$wpdb->query( "insert into `{$this->db_prefix}experiments` (`status`) values ('reserved')" );
-		return $wpdb->insert_id;
-	}
 	
-	function get_metric_id( $experiment_id ) {
-		global $wpdb;
-
-		// first, try to see if there's a metric already set for this experiment.
-		// if so, retreive it.
-		if ( isset( $experiment_id ) ) {
-			$metric_id = $wpdb->get_var( "select metric_id from {$this->db_prefix}experiments as e
-join {$this->db_prefix}metrics as m using (metric_id)
-where e.experiment_id = {$experiment_id}" );
-			if ( $metric_id !== null )
-				return $metric_id;
-		}
-		
-		// create a new metric
-		$wpdb->query( "insert into `{$this->db_prefix}metrics` (`type`) values ('manual')" );
-		if ( isset( $experiment_id ) )
-			$wpdb->query( "update {$this->db_prefix}experiments set metric_id = {$wpdb->insert_id} where experiment_id = {$experiment_id}" );
-		return $wpdb->insert_id;
-	}
-	
-	function create_metric() {
-/*		$wpdb->query( "insert into `{$this->db_prefix}metrics`
-							(`visitor_id`,`experiment_id`,`variant_id`)
-							values ({$visitor_id},{$experiment_id},{$variant})" );*/
-	}
-	
-	function get_variant_types_to_edit( $current_type = null ) {
-		$types = array();
-		foreach ( $this->variant_types as $variant ) {
-			$types[ $variant->code ] = (object) array( 'name' => $variant->name );
-			if ( $current_type == $variant->code )
-				$types[ $variant->code ]->selected = true;
-		}
-		apply_filters( 'shrimptest_get_variant_types_to_edit', $types, $current_type );
-		return $types;
-	}
-	
-	function get_metric_types_to_edit( $current_type = null ) {
-		$types = array();
-		foreach ( $this->metric_types as $metric ) {
-			$types[ $metric->code ] = (object) array( 'name' => $metric->name );
-			if ( $current_type == $metric->code )
-				$types[ $metric->code ]->selected = true;
-		}
-		apply_filters( 'shrimptest_get_metric_types_to_edit', $types, $current_type );
-		return $types;
+	function get_interface_slug( ) {
+		return $this->interface ? $this->interface->slug : false;
 	}
 	
 	/*
@@ -1057,14 +462,8 @@ where e.experiment_id = {$experiment_id}" );
 							`type` VARCHAR( 255 ) NOT NULL default 'conversion',
 							`data` LONGTEXT NULL,
 							`timestamp` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-						) ENGINE = MYISAM ",
-						"CREATE TABLE `{$this->db_prefix}request_touches` (
-							`request` varchar(1000) NOT NULL DEFAULT '',
-							`experiment_id` int(11) unsigned DEFAULT NULL,
-							`metric_id` int(11) unsigned DEFAULT NULL,
-							KEY `request` (`request`),
-							KEY `experiment_id` (`experiment_id`)
-						) ENGINE=MyISAM");
+						) ENGINE = MYISAM ");
+		$dbSql = apply_filters( 'shrimptest_dbdelta_sql', $dbSql );
 		dbDelta( $dbSql );
 		
 	}

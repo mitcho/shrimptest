@@ -6,11 +6,12 @@
  */
 class ShrimpTest_Interface {
 
-	var $shrimp;
-	var $variant_types;
-	var $metric_types;
-	
-	var $slug = 'shrimptest';
+	// references to the other global objects
+	var $shrimp; // Core
+	var $model;  // Model
+
+	// the interface slug used 	
+	var $slug;
 
 	// message ID's
 	var $message_success = 1;
@@ -24,7 +25,9 @@ class ShrimpTest_Interface {
 
 	function init( &$shrimptest_instance ) {
 		$this->shrimp = &$shrimptest_instance;
-		$this->shrimp->interface = &$this;
+		
+		// TODO: include the delimiter _ in the slug:
+		$this->slug = apply_filters( 'shrimptest_interface_slug', 'shrimptest' );
 		
 		add_action( 'admin_menu', array( &$this, 'admin_menu' ) );
 
@@ -99,11 +102,11 @@ class ShrimpTest_Interface {
 			$nonce = $_REQUEST['_wpnonce'];
 			if ( !wp_verify_nonce($nonce, 'activate-experiment_' . $experiment) )
 				wp_die( "That's nonce-ence." );
-			$status = $this->shrimp->get_experiment_status( $experiment );
+			$status = $this->model->get_experiment_status( $experiment );
 			if ( $status != 'inactive' )
 				wp_die( "This experiment cannot be activated. Please edit it first." );
 
-			$this->shrimp->update_experiment_status( $experiment, 'active' );
+			$this->model->update_experiment_status( $experiment, 'active' );
 			wp_redirect( admin_url("admin.php?page={$this->slug}_experiments&message=" . $this->message_activated) );
 		}
 
@@ -112,11 +115,11 @@ class ShrimpTest_Interface {
 			$nonce = $_REQUEST['_wpnonce'];
 			if ( !wp_verify_nonce($nonce, 'conclude-experiment_' . $experiment) )
 				wp_die( "That's nonce-ence." );
-			$status = $this->shrimp->get_experiment_status( $experiment );
+			$status = $this->model->get_experiment_status( $experiment );
 			if ( $status != 'active' )
 				wp_die( "This experiment cannot be concluded." );
 
-			$this->shrimp->update_experiment_status( $experiment, 'finished' );
+			$this->model->update_experiment_status( $experiment, 'finished' );
 			wp_redirect( admin_url("admin.php?page={$this->slug}_experiments&message=" . $this->message_concluded) );
 		}
 
@@ -130,7 +133,7 @@ class ShrimpTest_Interface {
 		}
 		
 		if ( isset($_GET['action']) && $_GET['action'] == 'new' && !isset($_GET['id']) ) {
-			$experiment_id = $this->shrimp->get_reserved_experiment_id( );
+			$experiment_id = $this->model->get_reserved_experiment_id( );
 			wp_redirect( $_SERVER['REQUEST_URI']."&id={$experiment_id}" );
 			exit;
 		}
@@ -269,12 +272,12 @@ text-shadow: -1px -1px 2px rgba(0,0,0,0.2);
 			$experiments = array( array( 'id'=>'20', 'title'=>'<sup>A</sup>/<sub>B</sub>', 'custom'=>false ) );
 
 			foreach( $touched_experiments as $experiment_id => $data ) {
-				$experiment = $this->shrimp->get_experiment( $experiment_id );
+				$experiment = $this->model->get_experiment( $experiment_id );
 				// TODO: display experiment name
 				$experiments["admin.php?page=shrimptest_experiments&id={$experiment_id}"] = array( 'id'=>$experiment_id, 'title'=>"Experiment {$experiment_id}: {$experiment->name} <small>(status: {$experiment->status})</small>", 'custom'=>false );
 				
 				// display each of the variants
-				foreach ( $this->shrimp->get_experiment_variants( $experiment_id ) as $variant ) {
+				foreach ( $this->model->get_experiment_variants( $experiment_id ) as $variant ) {
 					if ( $variant->variant_id == 0 )
 						$title = "Control";
 					else

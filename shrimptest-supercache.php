@@ -19,7 +19,7 @@ function wp_supercache_shrimptest_cache_key_filter( $key ) {
 		return $key;
 
 	global $shrimp;
-	$variants_string = $shrimp->get_cache_visitor_variants_string( );
+	$variants_string = shrimptest_cache_support_get_cache_visitor_variants_string( );
 	if ( $variants_string == 'metric'
 			|| $variants_string == 'calculating experiments list' ) {
 		if ( !defined( 'DONOTCACHEPAGE' ) ) {
