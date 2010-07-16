@@ -25,6 +25,8 @@ class ShrimpTest_Variant_Shortcode {
 	function init( $shrimptest_instance ) {
 
 		$this->shrimp =& $shrimptest_instance;
+		$this->model =& $shrimptest_instance->model;
+		$this->interface =& $shrimptest_instance->interface;
 
 		add_shortcode( $this->shortcode, array( &$this, 'shortcode_handler') );
 		
@@ -90,7 +92,7 @@ class ShrimpTest_Variant_Shortcode {
 		if ( !$variant_id ) // control case
 			return $content;
 
-		$variant = $this->shrimp->get_experiment_variant( $experiment_id, $variant_id );
+		$variant = $this->model->get_experiment_variant( $experiment_id, $variant_id );
 		return $variant->data['value'];
 		
 	}
@@ -101,17 +103,17 @@ class ShrimpTest_Variant_Shortcode {
 			$experiment_id = $args['id'];
 			unset( $args['id'] );
 		} else { // create a new experiment
-			$experiment_id = $this->shrimp->get_reserved_experiment_id( );
+			$experiment_id = $this->model->get_reserved_experiment_id( );
 		}
 		
 		$this->detected_experiment_ids[] = $experiment_id;
 		// make sure that this experiment is a shortcode-variant experiment.
-		$this->shrimp->update_variants_type( $experiment_id, 'shortcode' );
+		$this->model->update_variants_type( $experiment_id, 'shortcode' );
 			
-		$status = $this->shrimp->get_experiment_status( $experiment_id );
+		$status = $this->model->get_experiment_status( $experiment_id );
 		if ( $status == 'reserved' && count( $args ) )
-			$this->shrimp->update_experiment_status( $experiment_id, 'inactive' );
-		$variants = $this->shrimp->get_experiment_variants( $experiment_id );
+			$this->model->update_experiment_status( $experiment_id, 'inactive' );
+		$variants = $this->model->get_experiment_variants( $experiment_id );
 
 		$variant_names = array();
 		$next_variant_id = 0;
@@ -130,7 +132,7 @@ class ShrimpTest_Variant_Shortcode {
 				// no need to update control!
 			} else {
 				$variant_data = array( 'name' => 'Control', 'assignment_weight' => ($variants[0]->assignment_weight || 1), 'value' => $content );
-				$this->shrimp->update_experiment_variant( $experiment_id, 0, $variant_data );
+				$this->model->update_experiment_variant( $experiment_id, 0, $variant_data );
 			}
 			
 			// next, look at the variants
@@ -155,13 +157,13 @@ class ShrimpTest_Variant_Shortcode {
 				// keep track of the variants which were in the args
 				$variant_ids_in_args[] = $variant_id;
 				// update
-				$this->shrimp->update_experiment_variant( $experiment_id, $variant_id, $variant_data );
+				$this->model->update_experiment_variant( $experiment_id, $variant_id, $variant_data );
 			}
 			
 			// if some variant is no longer in the shortcode, it must have been removed. remove it.
 			foreach ( $variants as $id => $variant ) {
 				if ( array_search( $id, $variant_ids_in_args ) === false )
-					$this->shrimp->delete_experiment_variant( $experiment_id, $id );
+					$this->model->delete_experiment_variant( $experiment_id, $id );
 			}
 			$next_variant_id++;
 			
@@ -179,12 +181,12 @@ class ShrimpTest_Variant_Shortcode {
 			foreach( $old_value[0] as $old_experiment_id ) {
 				// if we're no longer associating this experiment with this post.
 				if ( array_search($old_experiment_id, $meta_value) === false ) {
-					$status = $this->shrimp->get_experiment_status( $old_experiment_id );
+					$status = $this->model->get_experiment_status( $old_experiment_id );
 					if ( $status == 'active' ) {
 						wp_die( __("You cannot remove the reference to experiment %d as it is currently active. Your post update has been cancelled.",'shrimptest') );
 					} else if ( $status == 'reserved' || $status == 'inactive' ) {
 						// TODO: check if this experiment is used elsewhere?
-						$this->shrimp->delete_experiment( $old_experiment_id );
+						$this->model->delete_experiment( $old_experiment_id );
 					}
 				}
 			}
@@ -232,10 +234,10 @@ class ShrimpTest_Variant_Shortcode {
 			return;
 		$experiment_ids = $experiment_ids[0];
 		foreach ( $experiment_ids as $experiment_id ) {
-			$status = $this->shrimp->get_experiment_status( $experiment_id );
+			$status = $this->model->get_experiment_status( $experiment_id );
 			echo $status;
 			if ( $status == 'inactive' || $status == 'reserved' ) {
-				$edit_url = "admin.php?page=" . $this->shrimp->get_interface_slug() . "_experiments&action=new&id={$experiment_id}";
+				$edit_url = "admin.php?page=" . $this->model->get_interface_slug() . "_experiments&action=new&id={$experiment_id}";
 				echo "<div class='updated'><p>" . sprintf(__("This entry includes an inactive experiment. You must <a href='%s'>edit</a> and activate the experiment."),$edit_url) . "</p></div>";
 			}
 		}

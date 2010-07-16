@@ -87,7 +87,9 @@ foreach( $experiments as $experiment ) {
 	echo '</div>';
 	// END ROW ACTIONS
 	
-	echo "</td><td>{$status}</td><td>{$start_date}</td><td>{$experiment->metric_name}</td><td>{$total->N}</td><td>{$total->avg}</td><td>&nbsp;</td></tr>";
+	echo "</td><td>{$status}</td><td>{$start_date}</td><td>{$experiment->metric_name}</td><td>{$total->N}</td><td>{$total->avg}</td><td>&nbsp;</td></tr>\n";
+	
+	var_dump(count($stats));
 	
 	unset( $control );
 	foreach ( $stats as $key => $stat ) {
@@ -99,21 +101,22 @@ foreach( $experiments as $experiment ) {
 		$pvalue = __( 'N/A', 'shrimptest' );
 		$pmessage = __( 'N/A', 'shrimptest' );
 
+		$avg = round( $stat->avg, 4 );
+
 		if ($key === 0) {
 			$control = $stat;
 			$name = __("Control", 'shrimptest');
 		} else {
 			$name = __("Variant",'shrimptest') . " " . $stat->variant_id;
-			$zscore = $this->model->zscore( $variant, $stat );
-			if ( $zscore ) {
+			$zscore = $this->model->zscore( $control, $stat );
+			if ( $zscore !== null ) {
 				$type = 'better'; // "better", "different"
 				// TODO: add "worse"
 				$p = $this->model->normal_cdf($zscore,($type == 'better'?'left':'middle'));
 
-				$null_p = 1 - $p;
-				$null_p = ( floor( $null_p * 1000) / 1000 );
+				$null_p = round( 1 - $p, 4 );
 				$null_p = "p &lt; {$null_p}";
-				$zscore = "z = " . ( floor($zscore * 1000) / 1000 );
+				$zscore = "z = " . round( $zscore, 4 );
 
 				if ( $p >= 0.95 ) {
 					if ( $p >= 0.99 )
@@ -127,7 +130,7 @@ foreach( $experiments as $experiment ) {
 			}
 		}
 
-		echo "<tr class=\"variant\" data-experiment=\"{$experiment->experiment_id}\"><td><strong>{$name}:</strong> {$stat->variant_name} ($assignment_percentage%)</td><td colspan='3'></td><td>{$stat->N}</td><td>{$stat->avg}</td><td>$pmessage</td></tr>";
+		echo "<tr class=\"variant\" data-experiment=\"{$experiment->experiment_id}\"><td><strong>{$name}:</strong> {$stat->variant_name} ($assignment_percentage%)</td><td colspan='3'></td><td>{$stat->N}</td><td>{$avg}</td><td>$pmessage</td></tr>";
 
 	}
 	

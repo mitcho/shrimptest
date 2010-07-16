@@ -124,7 +124,7 @@ class ShrimpTest_Metric_Conversion {
 		$rules = get_site_transient( "{$this->prefix}conversion_rules" );
 		if ( !$rules || empty( $rules ) ) {
 			$rules = array();
-			foreach ( $this->shrimp->get_metrics( array( 'type' => 'conversion' ) ) as $metric ) {
+			foreach ( $this->shrimp->model->get_metrics( array( 'type' => 'conversion' ) ) as $metric ) {
 				if ( isset( $metric->data['conversion_query_vars'] ) )
 					$rules[ $metric->metric_id ] = $metric->data['conversion_query_vars'];
 			}
@@ -151,6 +151,7 @@ class ShrimpTest_Metric_Conversion {
 		else
 			$url .= "?{$this->query_vars_parameter}=1";
 		$headers = wp_get_http_headers( $url );
+		echo "rar";
 		if ( !isset( $headers[ strtolower( $this->query_vars_header ) ] ) )
 			return false;
 		else

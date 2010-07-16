@@ -152,9 +152,11 @@ class ShrimpTest_Model {
 	function get_experiment_stats( $experiment_id ) {
 		global $wpdb;
 
-		$metric_type = $wpdb->get_var( "select type from {$this->db_prefix}metrics join {$this->db_prefix}experiments using (`metric_id`) where experiment_id = {$experiment_id}" );
+		$metric_type = $wpdb->get_var( "select type, metric_id from {$this->db_prefix}metrics join {$this->db_prefix}experiments using (`metric_id`) where experiment_id = {$experiment_id}", 0 );
+
+		$metric_id = $wpdb->get_var( "select type, metric_id from {$this->db_prefix}metrics join {$this->db_prefix}experiments using (`metric_id`) where experiment_id = {$experiment_id}", 1 );
 		
-		$metric_id = $wpdb->get_var("select metric_id from {$this->db_prefix}experiments where experiment_id = $experiment_id");
+//		$metric_id = $wpdb->get_var("select metric_id from {$this->db_prefix}experiments where experiment_id = $experiment_id");
 		$metric = $this->get_metric( $metric_id );
 		
 		$value = "value";
@@ -182,6 +184,7 @@ class ShrimpTest_Model {
 		$total_sql = "select count(unique_visitor_id) as N, avg(value) as avg, stddev(value) as sd from ({$uvsql}) as uv";
 		$stats = array();
 		$stats['total'] = $wpdb->get_row( $total_sql );
+//		var_dump($total_sql);
 		
 		$stats['total']->assignment_weight = $wpdb->get_var( $wpdb->prepare( "select sum(assignment_weight) from {$this->db_prefix}experiments_variants where experiment_id = %d", $experiment_id ) );
 		

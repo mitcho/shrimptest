@@ -8,7 +8,7 @@
 add_filter('shrimptest_dbdelta_sql', 'shrimptest_cache_support_add_sql');
 function shrimptest_cache_support_add_sql( $sql ) {
 	global $shrimp;
-	array_push($sql, "CREATE TABLE `{$shrimp->db_prefix}request_touches` (
+	array_push($sql, "CREATE TABLE `{$shrimp->model->db_prefix}request_touches` (
 											`request` varchar(1000) NOT NULL DEFAULT '',
 											`experiment_id` int(11) unsigned DEFAULT NULL,
 											`metric_id` int(11) unsigned DEFAULT NULL,
@@ -35,7 +35,7 @@ function shrimptest_cache_support_record_touched( $force = false ) {
 	if ( isset( $wp_super_cache_debug ) && $wp_super_cache_debug )
 		wp_cache_debug( "ShrimpTest: record_touched: $request", 5 );
 	
-	$cache = $wpdb->get_row( $wpdb->prepare("select group_concat(distinct experiment_id order by experiment_id asc) as experiments, group_concat(distinct metric_id order by metric_id asc) as metrics, count(request) as entries from {$shrimp->db_prefix}request_touches where request = %s", $request ) );
+	$cache = $wpdb->get_row( $wpdb->prepare("select group_concat(distinct experiment_id order by experiment_id asc) as experiments, group_concat(distinct metric_id order by metric_id asc) as metrics, count(request) as entries from {$shrimp->model->db_prefix}request_touches where request = %s", $request ) );
 
 	// if we want to force a recording, don't worry about this.
 	// alternatively, if there are no rows, also don't worry about it.
@@ -68,12 +68,12 @@ function shrimptest_cache_support_record_touched( $force = false ) {
 	
 	// if we're still here, let's reset the request_touches cache and insert new entries.
 	if ( $cache->entries ) {
-		$wpdb->query( $wpdb->prepare( "delete from {$shrimp->db_prefix}request_touches where request = %s", $request ) );
+		$wpdb->query( $wpdb->prepare( "delete from {$shrimp->model->db_prefix}request_touches where request = %s", $request ) );
 		if ( isset( $wp_super_cache_debug ) && $wp_super_cache_debug ) wp_cache_debug( "ShrimpTest: record_touched SQL: $wpdb->last_query", 5 );
 	}
 	
 	if ( !$shrimp->has_been_touched( ) ) {
-		$table = "{$shrimp->db_prefix}request_touches";
+		$table = "{$shrimp->model->db_prefix}request_touches";
 		$data = array( 'request' => $request );
 		$wpdb->insert( $table, $data, '%s' );
 		if ( isset( $wp_super_cache_debug ) && $wp_super_cache_debug ) wp_cache_debug( "ShrimpTest: record_touched SQL: $wpdb->last_query; $wpdb->rows_affected", 5 );
@@ -91,7 +91,7 @@ function shrimptest_cache_support_record_touched( $force = false ) {
 			foreach( array_keys( $metrics ) as $metric_id )
 				$values[] = "( '$escaped_request', null, '{$metric_id}' )";
 		}
-		$wpdb->query( "insert into {$shrimp->db_prefix}request_touches ( request, experiment_id, metric_id ) values " . join( ',', $values ) );
+		$wpdb->query( "insert into {$shrimp->model->db_prefix}request_touches ( request, experiment_id, metric_id ) values " . join( ',', $values ) );
 		if ( isset( $wp_super_cache_debug ) && $wp_super_cache_debug ) wp_cache_debug( "ShrimpTest: record_touched SQL: $wpdb->last_query; $wpdb->rows_affected", 5 );
 	}
 }
@@ -111,9 +111,9 @@ function shrimptest_cache_support_get_cache_visitor_variants_string( ) {
 		return 'no visitor id';
 
 	$variants = $wpdb->get_results( $wpdb->prepare(
-		"select ifnull(rt.experiment_id,if(rt.metric_id is not null,'metric',null)) as experiment_id, variant_id from {$shrimp->db_prefix}request_touches as rt "
-		."left join {$shrimp->db_prefix}experiments as e using (experiment_id) "
-		."left join {$shrimp->db_prefix}visitors_variants as vv on (rt.experiment_id = vv.experiment_id and vv.visitor_id = %s) "
+		"select ifnull(rt.experiment_id,if(rt.metric_id is not null,'metric',null)) as experiment_id, variant_id from {$shrimp->model->db_prefix}request_touches as rt "
+		."left join {$shrimp->model->db_prefix}experiments as e using (experiment_id) "
+		."left join {$shrimp->model->db_prefix}visitors_variants as vv on (rt.experiment_id = vv.experiment_id and vv.visitor_id = %s) "
 		."where request = %s order by experiment_id asc", $visitor_id, shrimptest_cache_support_request_uri( ) ) );
 
 	if ( isset( $wp_super_cache_debug ) && $wp_super_cache_debug ) wp_cache_debug( "ShrimpTest: variants data: $wpdb->last_query\n".var_export($variants, true), 5 );
