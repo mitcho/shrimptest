@@ -151,7 +151,6 @@ class ShrimpTest_Metric_Conversion {
 		else
 			$url .= "?{$this->query_vars_parameter}=1";
 		$headers = wp_get_http_headers( $url );
-		echo "rar";
 		if ( !isset( $headers[ strtolower( $this->query_vars_header ) ] ) )
 			return false;
 		else
