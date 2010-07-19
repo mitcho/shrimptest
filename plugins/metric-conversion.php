@@ -11,6 +11,8 @@ class ShrimpTest_Metric_Conversion {
 	
 	var $code = 'conversion'; // this code is what the metric type is registered as internally.
 	var $name = 'Conversion';
+	// this setting means that we will try to offer this metric as the default for new experiemnts:
+	var $_default = true;
 	
 	// variables used for the query_vars-retreiving code to get a more stable representation for
 	// detecting conversion hits.
@@ -42,9 +44,9 @@ class ShrimpTest_Metric_Conversion {
 	}
 
 	function admin_add_metric_extra( $metric ) {
-		if ( isset( $metric->data->conversion_url ) ) {
+		if ( isset( $metric->data['conversion_url'] ) ) {
 			$class = '';
-			$value = $metric->data->conversion_url;
+			$value = $metric->data['conversion_url'];
 		} else {
 			$class = 'default';
 			$value = get_bloginfo( 'url' );

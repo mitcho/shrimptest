@@ -532,8 +532,17 @@ where e.experiment_id = {$experiment_id}" );
 			if ( $current_type == $metric->code )
 				$types[ $metric->code ]->selected = true;
 		}
+		uasort( $types, array( $this, 'sort_by_defaultness' ) );
 		apply_filters( 'shrimptest_get_metric_types_to_edit', $types, $current_type );
 		return $types;
+	}
+
+	function sort_by_defaultness( $a, $b ) {
+		if ( $a->_default && !$b->_default )
+			return -1;
+		if ( $b->_default && !$a->_default )
+			return 1;
+		return strcmp( $a->code, $b->code );
 	}
 
 } // class ShrimpTest_Model
