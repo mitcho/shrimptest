@@ -519,6 +519,18 @@ where e.experiment_id = {$experiment_id}" );
 		apply_filters( 'shrimptest_get_variant_types_to_edit', $types, $current_type );
 		return $types;
 	}
+
+	function display_metric_value( $metric_code, $value ) {
+		foreach ( $this->metric_types as $metric ) {
+			if ( $metric->code != $metric_code )
+				continue;
+			if ( $metric->display_value )
+				return $metric->display_value( $value );
+		}
+		if ( is_numeric( $value ) && !is_int( $value ) )
+			return round( $value, 4 );
+		return $value;
+	}
 	
 	function get_metric_types_to_edit( $current_type = null ) {
 		$types = array();
@@ -539,5 +551,5 @@ where e.experiment_id = {$experiment_id}" );
 			return 1;
 		return strcmp( $a->code, $b->code );
 	}
-
+	
 } // class ShrimpTest_Model

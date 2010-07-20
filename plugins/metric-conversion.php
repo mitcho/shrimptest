@@ -158,6 +158,10 @@ class ShrimpTest_Metric_Conversion {
 		else
 			return unserialize( $headers[ strtolower( $this->query_vars_header ) ] );
 	}
+	
+	function display_value( $value ) {
+		return round( $value * 100, 2 ) . '%';
+	}
 
 	
 }

@@ -16,8 +16,8 @@ if ( isset( $_GET['id'] ) ) {
 	exit;
 }
 
-$current_screen = 'shrimptest_experiments';
-register_column_headers($current_screen, array('id_name'=>'Experiment name','status'=>'Status','start_date'=>'Start date','metric'=>'Metric','metric_N'=>'N','metric_avg'=>'Average','$pmessage'=>'Result'));
+$current_screen = "{$this->slug}_experiments";
+register_column_headers($current_screen, array('id_name'=>'Experiment name','status'=>'Status','metric'=>'Metric','metric_N'=>'Total Visitors','metric_avg'=>'Metric Average','$pmessage'=>'Result'));
 
 ?>
 
@@ -87,9 +87,13 @@ foreach( $experiments as $experiment ) {
 	echo '</div>';
 	// END ROW ACTIONS
 	
-	echo "</td><td>{$status}</td><td>{$start_date}</td><td>{$experiment->metric_name}</td><td>{$total->N}</td><td>{$total->avg}</td><td>&nbsp;</td></tr>\n";
+	$status = "<strong>$status</strong>";
+	if ( $start_date )
+		$status .= "<br/><small>Started: {$start_date}</small>";
+	if ( $end_date )
+		$status .= "<br/><small>Finished: {$end_date}</small>";
 	
-	var_dump(count($stats));
+	echo "</td><td>{$status}</td><td>{$experiment->metric_name}</td><td>{$total->N}</td><td>" . $this->model->display_metric_value($metric->code, $total->avg) . "</td><td>&nbsp;</td></tr>\n";
 	
 	unset( $control );
 	foreach ( $stats as $key => $stat ) {
@@ -101,7 +105,7 @@ foreach( $experiments as $experiment ) {
 		$pvalue = __( 'N/A', 'shrimptest' );
 		$pmessage = __( 'N/A', 'shrimptest' );
 
-		$avg = round( $stat->avg, 4 );
+		$this->model->display_metric_value($metric->code, $stat->avg);
 
 		if ($key === 0) {
 			$control = $stat;
@@ -130,7 +134,7 @@ foreach( $experiments as $experiment ) {
 			}
 		}
 
-		echo "<tr class=\"variant\" data-experiment=\"{$experiment->experiment_id}\"><td><strong>{$name}:</strong> {$stat->variant_name} ($assignment_percentage%)</td><td colspan='3'></td><td>{$stat->N}</td><td>{$avg}</td><td>$pmessage</td></tr>";
+		echo "<tr class=\"variant\" data-experiment=\"{$experiment->experiment_id}\"><td><strong>{$name}:</strong> {$stat->variant_name} ($assignment_percentage%)</td><td colspan='2'></td><td>{$stat->N}</td><td>{$avg}</td><td>$pmessage</td></tr>";
 
 	}
 	
