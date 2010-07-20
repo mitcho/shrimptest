@@ -149,14 +149,30 @@ class ShrimpTest_Model {
 		$wpdb->update( "{$this->db_prefix}experiments", $data, $where, '%s', '%d' );		
 	}
 	
+	function get_metric_id( $experiment_id ) {
+		global $wpdb;
+
+		// first, try to see if there's a metric already set for this experiment.
+		// if so, retreive it.
+		if ( isset( $experiment_id ) ) {
+			$metric_id = $wpdb->get_var( "select metric_id from {$this->db_prefix}experiments as e
+join {$this->db_prefix}metrics as m using (metric_id)
+where e.experiment_id = {$experiment_id}" );
+			if ( $metric_id !== null )
+				return $metric_id;
+		}
+		
+		// create a new metric
+		$wpdb->query( "insert into `{$this->db_prefix}metrics` (`type`) values ('manual')" );
+		if ( isset( $experiment_id ) )
+			$wpdb->query( "update {$this->db_prefix}experiments set metric_id = {$wpdb->insert_id} where experiment_id = {$experiment_id}" );
+		return $wpdb->insert_id;
+	}
+	
 	function get_experiment_stats( $experiment_id ) {
 		global $wpdb;
 
-		$metric_type = $wpdb->get_var( "select type, metric_id from {$this->db_prefix}metrics join {$this->db_prefix}experiments using (`metric_id`) where experiment_id = {$experiment_id}", 0 );
-
-		$metric_id = $wpdb->get_var( "select type, metric_id from {$this->db_prefix}metrics join {$this->db_prefix}experiments using (`metric_id`) where experiment_id = {$experiment_id}", 1 );
-		
-//		$metric_id = $wpdb->get_var("select metric_id from {$this->db_prefix}experiments where experiment_id = $experiment_id");
+		$metric_id = $this->get_metric_id( $experiment_id );
 		$metric = $this->get_metric( $metric_id );
 		
 		$value = "value";
@@ -184,7 +200,6 @@ class ShrimpTest_Model {
 		$total_sql = "select count(unique_visitor_id) as N, avg(value) as avg, stddev(value) as sd from ({$uvsql}) as uv";
 		$stats = array();
 		$stats['total'] = $wpdb->get_row( $total_sql );
-//		var_dump($total_sql);
 		
 		$stats['total']->assignment_weight = $wpdb->get_var( $wpdb->prepare( "select sum(assignment_weight) from {$this->db_prefix}experiments_variants where experiment_id = %d", $experiment_id ) );
 		
@@ -382,26 +397,6 @@ class ShrimpTest_Model {
 			"delete from {$this->db_prefix}metrics where `metric_id` = %d", 
 			$metric_id ) );
 		
-	}
-
-	function get_metric_id( $experiment_id ) {
-		global $wpdb;
-
-		// first, try to see if there's a metric already set for this experiment.
-		// if so, retreive it.
-		if ( isset( $experiment_id ) ) {
-			$metric_id = $wpdb->get_var( "select metric_id from {$this->db_prefix}experiments as e
-join {$this->db_prefix}metrics as m using (metric_id)
-where e.experiment_id = {$experiment_id}" );
-			if ( $metric_id !== null )
-				return $metric_id;
-		}
-		
-		// create a new metric
-		$wpdb->query( "insert into `{$this->db_prefix}metrics` (`type`) values ('manual')" );
-		if ( isset( $experiment_id ) )
-			$wpdb->query( "update {$this->db_prefix}experiments set metric_id = {$wpdb->insert_id} where experiment_id = {$experiment_id}" );
-		return $wpdb->insert_id;
 	}
 	
 	function create_metric() {
