@@ -291,15 +291,24 @@ where e.experiment_id = {$experiment_id}" );
 			wp_die( 'The variant must have a <code>name</code> and a non-zero <code>assignment_weight</code>' );
 		
 		unset( $variant_data['name'], $variant_data['assignment_weight'] );
-		$data = '';
-		if ( !empty( $variant_data ) )
+
+		if ( empty( $variant_data ) ) {
+			// if the data is empty, don't overwrite it!
+			$wpdb->query( $wpdb->prepare( "insert into {$this->db_prefix}experiments_variants "
+																		. "(experiment_id, variant_id, variant_name, assignment_weight, data) "
+																		. "values (%d, %d, %s, %d) "
+																		. "on duplicate key update variant_name = %s, assignment_weight = %d",
+																		$experiment_id, $variant_id, $name, $assignment_weight,
+																		$name, $assignment_weight ) );
+		} else {
 			$data = serialize( $variant_data );
-		$wpdb->query( $wpdb->prepare( "insert into {$this->db_prefix}experiments_variants "
-																	. "(experiment_id, variant_id, variant_name, assignment_weight, data) "
-																	. "values (%d, %d, %s, %d, %s) "
-																	. "on duplicate key update variant_name = %s, assignment_weight = %d, data = %s",
-																	$experiment_id, $variant_id, $name, $assignment_weight, $data,
-																	$name, $assignment_weight, $data ) );
+			$wpdb->query( $wpdb->prepare( "insert into {$this->db_prefix}experiments_variants "
+																		. "(experiment_id, variant_id, variant_name, assignment_weight, data) "
+																		. "values (%d, %d, %s, %d, %s) "
+																		. "on duplicate key update variant_name = %s, assignment_weight = %d, data = %s",
+																		$experiment_id, $variant_id, $name, $assignment_weight, $data,
+																		$name, $assignment_weight, $data ) );
+		}
 	}
 	
 	/*
@@ -524,7 +533,7 @@ where e.experiment_id = {$experiment_id}" );
 		foreach ( $this->metric_types as $metric ) {
 			if ( $metric->code != $metric_code )
 				continue;
-			if ( $metric->display_value )
+			if ( method_exists( $metric, 'display_value' ) )
 				return $metric->display_value( $value );
 		}
 		if ( is_numeric( $value ) && !is_int( $value ) )

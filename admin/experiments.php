@@ -93,18 +93,19 @@ foreach( $experiments as $experiment ) {
 	if ( $end_date )
 		$status .= "<br/><small>Finished: {$end_date}</small>";
 	
-	echo "</td><td>{$status}</td><td>{$experiment->metric_name}</td><td>{$total->N}</td><td>" . $this->model->display_metric_value($metric->code, $total->avg) . "</td><td>&nbsp;</td></tr>\n";
+	echo "</td><td>{$status}</td><td>{$experiment->metric_name}</td><td>{$total->N}</td><td>" . $this->model->display_metric_value($experiment->metric_type, $total->avg) . "</td><td>&nbsp;</td></tr>\n";
 	
 	unset( $control );
 	foreach ( $stats as $key => $stat ) {
-		$assignment_percentage = round( $stat->assignment_weight / $total->assignment_weight * 1000 ) / 10;
+		if ($total->assignment_weight)
+			$assignment_percentage = round( $stat->assignment_weight / $total->assignment_weight * 1000 ) / 10;
 		if ( $key === 'total' )
 			continue;
 
 		$pvalue = __( 'N/A', 'shrimptest' );
 		$pmessage = __( 'N/A', 'shrimptest' );
 
-		$this->model->display_metric_value($metric->code, $stat->avg);
+		$avg = $this->model->display_metric_value($experiment->metric_type, $stat->avg);
 
 		if ($key === 0) {
 			$control = $stat;
