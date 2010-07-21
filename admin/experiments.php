@@ -102,8 +102,8 @@ foreach( $experiments as $experiment ) {
 		if ( $key === 'total' )
 			continue;
 
-		$pvalue = __( 'N/A', 'shrimptest' );
-		$pmessage = __( 'N/A', 'shrimptest' );
+		$pvalue = '<span class="na">' . __( 'N/A', 'shrimptest' ) . '</span>';
+		$pmessage = '<span class="na">' . __( 'N/A', 'shrimptest' ) . '</span>';
 
 		$avg = $this->model->display_metric_value($experiment->metric_type, $stat->avg);
 
@@ -144,6 +144,11 @@ foreach( $experiments as $experiment ) {
 	</tbody>
 </table>
 
+<style type="text/css">
+.na {
+	color: #666;
+}
+</style>
 <script type="text/javascript">
 function toggleVariants( id ) {
   if (jQuery('a[data-experiment='+id+']').text() == '<?php _e("Show variants", "shrimptest");?>') {
