@@ -68,16 +68,15 @@ class ShrimpTest_Variant_Shortcode {
 	}
 	
 	function add_id_to_shortcode( $matches ) {
-		$this->shortcode_replacement_count++;
 		$count = $this->shortcode_replacement_count;
+		$this->shortcode_replacement_count++;
 		// $matches[3] is the given ID value.
 		if ( !empty( $matches[3] ) ) {
 			if ( $this->detected_experiment_ids[$count] == $matches[3] )
 				return $matches[0];
 			else // ID value is different
 				return "[{$this->shortcode} id=" . $this->detected_experiment_ids[$count] . ' ';
-		}
-		
+		}		
 		return $matches[0] . 'id=' . $this->detected_experiment_ids[$count] . ' ';
 	}
 
@@ -105,7 +104,6 @@ class ShrimpTest_Variant_Shortcode {
 		} else { // create a new experiment
 			$experiment_id = $this->model->get_reserved_experiment_id( );
 		}
-		
 		$this->detected_experiment_ids[] = $experiment_id;
 		// make sure that this experiment is a shortcode-variant experiment.
 		$this->model->update_variants_type( $experiment_id, 'shortcode' );
@@ -132,7 +130,7 @@ class ShrimpTest_Variant_Shortcode {
 				// no need to update control!
 			} else {
 				$variant_data = array( 'name' => 'Control', 'assignment_weight' => ($variants[0]->assignment_weight || 1), 'value' => $content );
-				$this->model->update_experiment_variant( $experiment_id, 0, $variant_data );
+				$this->model->update_experiment_variant( (int) $experiment_id, 0, $variant_data );
 			}
 			
 			// next, look at the variants
@@ -157,7 +155,7 @@ class ShrimpTest_Variant_Shortcode {
 				// keep track of the variants which were in the args
 				$variant_ids_in_args[] = $variant_id;
 				// update
-				$this->model->update_experiment_variant( $experiment_id, $variant_id, $variant_data );
+				$this->model->update_experiment_variant( (int) $experiment_id, $variant_id, $variant_data );
 			}
 			
 			// if some variant is no longer in the shortcode, it must have been removed. remove it.
