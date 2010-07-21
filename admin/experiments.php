@@ -146,7 +146,7 @@ foreach( $experiments as $experiment ) {
 
 <style type="text/css">
 .na {
-	color: #666;
+	color: #999;
 }
 </style>
 <script type="text/javascript">
