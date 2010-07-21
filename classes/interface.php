@@ -40,12 +40,10 @@ class ShrimpTest_Interface {
 		// $icon = plugins_url( null, __FILE__ ) . '/shrimp.png';
 		// TODO: fix this:
 		$icon = WP_PLUGIN_URL . '/shrimptest/shrimp.png';
-		$dashboard = add_menu_page( 'ShrimpTest Dashboard', 'ShrimpTest', 'manage_options', $this->slug, array( &$this, 'admin_dashboard' ), $icon );
-		$experiments = add_submenu_page( $this->slug, 'ShrimpTest Experiments', 'Experiments', 'manage_options', "{$this->slug}_experiments", array( &$this, 'admin_experiments' ) );
+		$experiments = add_menu_page( 'ShrimpTest Experiments', 'ShrimpTest', 'manage_options', $this->slug, array( &$this, 'admin_experiments' ), $icon );
 		$settings = add_submenu_page( $this->slug, 'ShrimpTest Settings', 'Settings', 'manage_options', "{$this->slug}_settings", array( &$this, 'admin_settings' ) );
 		
 		add_action( 'admin_init', array( &$this, 'admin_new_experiment_redirect' ) );
-		add_action( 'admin_head-'. $dashboard, array( &$this, 'admin_header' ) );
 		add_action( 'admin_head-'. $settings, array( &$this, 'admin_header' ) );
 		add_action( 'admin_head-'. $experiments, array( &$this, 'admin_header' ) );
 		
@@ -94,7 +92,7 @@ class ShrimpTest_Interface {
 	
 	function admin_new_experiment_redirect( ) {
 
-		if ( !isset( $_GET['page'] ) || $_GET['page'] != "{$this->slug}_experiments" )
+		if ( !isset( $_GET['page'] ) || $_GET['page'] != "{$this->slug}" )
 			return;
 
 		if ( isset($_GET['action']) && $_GET['action'] == 'activate' ) {
@@ -107,7 +105,7 @@ class ShrimpTest_Interface {
 				wp_die( "This experiment cannot be activated. Please edit it first." );
 
 			$this->model->update_experiment_status( $experiment, 'active' );
-			wp_redirect( admin_url("admin.php?page={$this->slug}_experiments&message=" . $this->message_activated) );
+			wp_redirect( admin_url("admin.php?page={$this->slug}&message=" . $this->message_activated) );
 		}
 
 		if ( isset($_GET['action']) && $_GET['action'] == 'conclude' ) {
@@ -120,7 +118,7 @@ class ShrimpTest_Interface {
 				wp_die( "This experiment cannot be concluded." );
 
 			$this->model->update_experiment_status( $experiment, 'finished' );
-			wp_redirect( admin_url("admin.php?page={$this->slug}_experiments&message=" . $this->message_concluded) );
+			wp_redirect( admin_url("admin.php?page={$this->slug}&message=" . $this->message_concluded) );
 		}
 
 		if ( isset( $_REQUEST['submit'] ) ) {
@@ -139,10 +137,6 @@ class ShrimpTest_Interface {
 		}
 	}
 	
-	function admin_dashboard( ) {
-		include SHRIMPTEST_DIR . '/admin/dashboard.php';
-	}
-
 	function admin_settings( ) {
 		include SHRIMPTEST_DIR . '/admin/settings.php';
 	}
@@ -274,7 +268,7 @@ text-shadow: -1px -1px 2px rgba(0,0,0,0.2);
 			foreach( $touched_experiments as $experiment_id => $data ) {
 				$experiment = $this->model->get_experiment( $experiment_id );
 				// TODO: display experiment name
-				$experiments["admin.php?page=shrimptest_experiments&id={$experiment_id}"] = array( 'id'=>$experiment_id, 'title'=>"Experiment {$experiment_id}: {$experiment->name} <small>(status: {$experiment->status})</small>", 'custom'=>false );
+				$experiments["admin.php?page={$this->slug}&id={$experiment_id}"] = array( 'id'=>$experiment_id, 'title'=>"Experiment {$experiment_id}: {$experiment->name} <small>(status: {$experiment->status})</small>", 'custom'=>false );
 				
 				// display each of the variants
 				foreach ( $this->model->get_experiment_variants( $experiment_id ) as $variant ) {

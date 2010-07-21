@@ -29,5 +29,5 @@ if ( $metric_type == 'manual' ) {
 $metric_data = apply_filters( 'shrimptest_save_metric_' . $metric_type, $metric_data );
 $this->model->update_metric( $metric_id, $metric_data );
 
-wp_redirect( admin_url("admin.php?page={$this->slug}_experiments&message=" . $this->message_success) );
+wp_redirect( admin_url("admin.php?page={$this->slug}&message=" . $this->message_success) );
 exit;

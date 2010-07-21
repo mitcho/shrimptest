@@ -16,14 +16,14 @@ if ( isset( $_GET['id'] ) ) {
 	exit;
 }
 
-$current_screen = "{$this->slug}_experiments";
-register_column_headers($current_screen, array('id_name'=>'Experiment name','status'=>'Status','metric'=>'Metric','metric_N'=>'Total Visitors','metric_avg'=>'Metric Average','$pmessage'=>'Result'));
+$current_screen = $this->slug;
+register_column_headers($current_screen, array('id_name'=>'Experiment Name','status'=>'Status','metric'=>'Metric','metric_N'=>'Total Visitors','metric_avg'=>'Metric Average','$pmessage'=>'Result'));
 
 ?>
 
 <div class="wrap">
 <?php screen_icon(); ?>
-<h2><?php _e( 'ShrimpTest Experiments', 'shrimptest' ); ?> <a class="button add-new-h2" href="<?php echo admin_url("admin.php?page=shrimptest_experiments&action=new") ?>">Add New</a></h2>
+<h2><?php _e( 'ShrimpTest Experiments', 'shrimptest' ); ?> <a class="button add-new-h2" href="<?php echo admin_url("admin.php?page={$this->slug}&action=new") ?>">Add New</a></h2>
 
 <table class="widefat fixed" cellspacing="0">
 	<thead>
@@ -65,13 +65,13 @@ foreach( $experiments as $experiment ) {
 	if ( $experiment->status == 'inactive' ) {
 		$edit_url = 'admin.php?page=shrimptest_experiments&action=new&id=' . $experiment->experiment_id;
 		$actions['edit'] = '<a href="'.$edit_url.'">' . __('Edit', 'shrimptest') . '</a>';
-		$activate_url = wp_nonce_url('admin.php?page=shrimptest_experiments&amp;action=activate&amp;id=' . $experiment->experiment_id, 'activate-experiment_' . $experiment->experiment_id);
+		$activate_url = wp_nonce_url("admin.php?page={$this->slug}&amp;action=activate&amp;id=" . $experiment->experiment_id, 'activate-experiment_' . $experiment->experiment_id);
 		$actions['activate'] = '<a href="'.$activate_url.'">' . __('Activate', 'shrimptest') . '</a>';
 
 	}
 
 	if ( $experiment->status == 'active' ) {
-		$conclude_url = wp_nonce_url('admin.php?page=shrimptest_experiments&amp;action=conclude&amp;id=' . $experiment->experiment_id, 'conclude-experiment_' . $experiment->experiment_id);
+		$conclude_url = wp_nonce_url("admin.php?page={$this->slug}&amp;action=conclude&amp;id=" . $experiment->experiment_id, 'conclude-experiment_' . $experiment->experiment_id);
 		$actions['end'] = '<a class="submitdelete" href="'.$conclude_url.'">' . __('Stop', 'shrimptest') . '</a>';
 	}
 	
@@ -101,7 +101,6 @@ foreach( $experiments as $experiment ) {
 		if ( $key === 'total' )
 			continue;
 
-		$zscore = __( 'N/A', 'shrimptest' );
 		$pvalue = __( 'N/A', 'shrimptest' );
 		$pmessage = __( 'N/A', 'shrimptest' );
 
@@ -120,16 +119,16 @@ foreach( $experiments as $experiment ) {
 
 				$null_p = round( 1 - $p, 4 );
 				$null_p = "p &lt; {$null_p}";
-				$zscore = "z = " . round( $zscore, 4 );
 
 				if ( $p >= 0.95 ) {
+					// TODO: allow custom confidence intervals
 					if ( $p >= 0.99 )
 						$desc = "very confident";
 					else if ( $p >= 0.95 )
 						$desc = "confident";
-					$pmessage = sprintf( "We are <strong>%s</strong> that variant %d is %s than the control. (%s, %s)", $desc, $stat->variant_id, $type, $null_p, $zscore );
+					$pmessage = sprintf( "We are <strong>%s</strong> that variant %d is %s than the control. (%s)", $desc, $stat->variant_id, $type, $null_p );
 				} else {
-					$pmessage = sprintf( "We cannot confidently say whether or not variant %d is %s than the control. Perhaps there is no effect or there is not enough data. (%s)", $stat->variant_id, $type, $zscore );
+					$pmessage = sprintf( "We cannot confidently say whether or not variant %d is %s than the control. Perhaps there is no effect or there is not enough data. (%s)", $stat->variant_id, $type, $null_p );
 				}
 			}
 		}
