@@ -4,11 +4,14 @@ global $wpdb;
 $experiment_id = (int) $_REQUEST['id'];
 $metric_id = $_POST['metric_id'];
 
-$experiment_data = array( name => $_POST['name'],
-													variants_type => $_POST['variants_type'],
-													variants => $_POST['variant'],
-													metric_id => $metric_id,
+$experiment_data = array( 'name' => $_POST['name'],
+													'variants_type' => $_POST['variants_type'],
+													'variants' => $_POST['variant'],
+													'metric_id' => $metric_id,
 													);
+
+if ( empty( $experiment_data['variants'] ) )
+	wp_die( "Please enter some variants." );
 
 $this->model->update_experiment( $experiment_id, $experiment_data );
 

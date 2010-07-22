@@ -63,7 +63,7 @@ foreach( $experiments as $experiment ) {
 	$actions = array();
 	$actions['showhide'] = "<a href=\"#\" class=\"showhide\" data-experiment=\"{$experiment->experiment_id}\" ></a>";
 	if ( $experiment->status == 'inactive' ) {
-		$edit_url = 'admin.php?page=shrimptest_experiments&action=new&id=' . $experiment->experiment_id;
+		$edit_url = "admin.php?page={$this->slug}&action=new&id=" . $experiment->experiment_id;
 		$actions['edit'] = '<a href="'.$edit_url.'">' . __('Edit', 'shrimptest') . '</a>';
 		$activate_url = wp_nonce_url("admin.php?page={$this->slug}&amp;action=activate&amp;id=" . $experiment->experiment_id, 'activate-experiment_' . $experiment->experiment_id);
 		$actions['activate'] = '<a href="'.$activate_url.'">' . __('Activate', 'shrimptest') . '</a>';
@@ -75,7 +75,7 @@ foreach( $experiments as $experiment ) {
 		$actions['end'] = '<a class="submitdelete" href="'.$conclude_url.'">' . __('Stop', 'shrimptest') . '</a>';
 	}
 	
-	$actions = apply_filters( 'shrimptest_admin_experiment_row_actions', $actions, $post );
+	$actions = apply_filters( 'shrimptest_admin_experiment_row_actions', $actions );//, $post
 	$action_count = count($actions);
 	$i = 0;
 	echo '<div class="row-actions">';
@@ -88,9 +88,9 @@ foreach( $experiments as $experiment ) {
 	// END ROW ACTIONS
 	
 	$status = "<strong>$status</strong>";
-	if ( $start_date )
+	if ( isset( $start_date ) && $start_date )
 		$status .= "<br/><small>Started: {$start_date}</small>";
-	if ( $end_date )
+	if ( isset( $end_date ) && $end_date )
 		$status .= "<br/><small>Finished: {$end_date}</small>";
 	
 	echo "</td><td>{$status}</td><td>{$experiment->metric_name}</td><td>{$total->N}</td><td>" . $this->model->display_metric_value($experiment->metric_type, $total->avg) . "</td><td>&nbsp;</td></tr>\n";

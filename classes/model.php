@@ -95,6 +95,7 @@ class ShrimpTest_Model {
 		foreach ( $variants as $variant_id => $variant_data )
 			$this->update_experiment_variant( $experiment_id, $variant_id, $variant_data );
 		$variant_count = count( $variants );
+		// delete extra (probably old) variants:
 		$wpdb->query( $wpdb->prepare( "delete from {$this->db_prefix}experiments_variants "
 																	. "where experiment_id = %d and variant_id >= %d",
 																	$experiment_id, $variant_count ) );
@@ -295,19 +296,19 @@ where e.experiment_id = {$experiment_id}" );
 		if ( empty( $variant_data ) ) {
 			// if the data is empty, don't overwrite it!
 			$wpdb->query( $wpdb->prepare( "insert into {$this->db_prefix}experiments_variants "
-																		. "(experiment_id, variant_id, variant_name, assignment_weight, data) "
+																		. "(experiment_id, variant_id, variant_name, assignment_weight) "
 																		. "values (%d, %d, %s, %d) "
 																		. "on duplicate key update variant_name = %s, assignment_weight = %d",
-																		$experiment_id, $variant_id, $name, $assignment_weight,
-																		$name, $assignment_weight ) );
+																		$experiment_id, $variant_id, $name, (int) $assignment_weight,
+																		$name, (int) $assignment_weight ) );
 		} else {
 			$data = serialize( $variant_data );
 			$wpdb->query( $wpdb->prepare( "insert into {$this->db_prefix}experiments_variants "
 																		. "(experiment_id, variant_id, variant_name, assignment_weight, data) "
 																		. "values (%d, %d, %s, %d, %s) "
 																		. "on duplicate key update variant_name = %s, assignment_weight = %d, data = %s",
-																		$experiment_id, $variant_id, $name, $assignment_weight, $data,
-																		$name, $assignment_weight, $data ) );
+																		$experiment_id, $variant_id, $name, (int) $assignment_weight, $data,
+																		$name, (int) $assignment_weight, $data ) );
 		}
 	}
 	
