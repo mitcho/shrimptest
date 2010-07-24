@@ -6,19 +6,15 @@
 
 class ShrimpTest_Variant_Shortcode extends ShrimpTest_Variant {
 	
+	var $code = 'shortcode';
+	var $name = 'Shortcode';
+	
 	var $shortcode = 'ab';
 	
 	var $experiment_ids_meta_key = '_shrimptest_shortcode_experiments';
 	var $detected_experiment_ids = array( );
 	
-	function init( $shrimptest_instance ) {
-
-		$this->shrimp =& $shrimptest_instance;
-		$this->model =& $shrimptest_instance->model;
-		$this->interface =& $shrimptest_instance->interface;
-
-		$this->code = 'shortcode';
-		$this->name = 'Shortcode';
+	function ShrimpTest_Variant_Shortcode( $shrimptest_instance ) {
 
 		add_shortcode( $this->shortcode, array( &$this, 'shortcode_handler') );
 		
@@ -29,7 +25,7 @@ class ShrimpTest_Variant_Shortcode extends ShrimpTest_Variant {
 		add_action( 'shrimptest_add_variant_extra', array( &$this, 'admin_add_variant_extra' ) );
 		add_action( 'shrimptest_admin_header', array( &$this, 'admin_script_and_style' ) );
 		
-		add_action( "update_post_meta", array( &$this, 'cleanup_experiments' ), 10, 4 );
+		add_action( 'update_post_meta', array( &$this, 'cleanup_experiments' ), 10, 4 );
 
 		add_action( 'edit_page_form', array( &$this, 'edit_helper' ) );
 		add_action( 'edit_form_advanced', array( &$this, 'edit_helper' ) );

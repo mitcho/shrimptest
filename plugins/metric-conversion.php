@@ -5,7 +5,12 @@
  */
 
 class ShrimpTest_Metric_Conversion extends ShrimpTest_Metric {
-		
+	
+	var $code = 'conversion';
+	var $name = 'Conversion';
+	// this setting means that we will try to offer this metric as the default for new experiments:
+	var $_default = true;
+	
 	// variables used for the query_vars-retreiving code to get a more stable representation for
 	// detecting conversion hits.
 	var $query_vars_header = 'X-ShrimpTest-Query-Vars';
@@ -13,14 +18,7 @@ class ShrimpTest_Metric_Conversion extends ShrimpTest_Metric {
 
 	var $prefix = 'shrimptest_metric_conversion_';
 		
-	function init( $shrimptest_instance ) {
-
-		$this->shrimp =& $shrimptest_instance;
-
-		$this->code = 'conversion';
-		$this->name = 'Conversion';
-		// this setting means that we will try to offer this metric as the default for new experiments:
-		$this->_default = true;
+	function ShrimpTest_Metric_Conversion( $shrimptest_instance ) {
 
 		add_action( 'shrimptest_add_metric_extra', array( &$this, 'admin_add_metric_extra' ), 10, 1 );
 		add_action( 'shrimptest_admin_header', array( &$this, 'admin_script_and_style' ) );
@@ -33,6 +31,7 @@ class ShrimpTest_Metric_Conversion extends ShrimpTest_Metric {
 		
 		// Utility function for post query vars retreival
 		add_filter( 'wp_headers', array( &$this, 'print_query_headers' ), 10, 2 );
+
 	}
 
 	function admin_add_metric_extra( $metric ) {

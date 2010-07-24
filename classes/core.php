@@ -92,8 +92,8 @@ class ShrimpTest {
 			if ( $parent_class != 'ShrimpTest_Variant' && $parent_class != 'ShrimpTest_Metric' )
 				continue;
 			
-			$object = new $class; // initialize it.
-			$object->init( &$this );
+			$object = new $class( &$this ); // initialize it.
+			$object->set_shrimp( &$this );
 			
 			if ( $parent_class == 'ShrimpTest_Variant' ) {
 				if ( array_search( $object->code, array_keys( $this->model->variant_types ) ) )
