@@ -1,32 +1,24 @@
 <?php
 
-// $export_class is the name of the class.
-$export_class = 'ShrimpTest_Variant_Shortcode';
-
 /*
  * class ShrimpTest_Variant_Shortcode
  */
 
-class ShrimpTest_Variant_Shortcode {
+class ShrimpTest_Variant_Shortcode extends ShrimpTest_Variant {
 	
-	var $code = 'shortcode'; // this code is what the variant type is registered as internally.
-	var $name = 'Shortcode';
 	var $shortcode = 'ab';
 	
 	var $experiment_ids_meta_key = '_shrimptest_shortcode_experiments';
 	var $detected_experiment_ids = array( );
-	
-	var $shrimp;	
-	
-	function ShrimpTest_Variant_Shortcode( ) {
-		// run init.
-	}
 	
 	function init( $shrimptest_instance ) {
 
 		$this->shrimp =& $shrimptest_instance;
 		$this->model =& $shrimptest_instance->model;
 		$this->interface =& $shrimptest_instance->interface;
+
+		$this->code = 'shortcode';
+		$this->name = 'Shortcode';
 
 		add_shortcode( $this->shortcode, array( &$this, 'shortcode_handler') );
 		

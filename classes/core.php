@@ -60,7 +60,11 @@ class ShrimpTest {
 	}
 	
 	function load_model_and_interface( ) {
-		require_once SHRIMPTEST_DIR . '/classes/model.php'; // holds the ShrimpTest_Model class
+		// load all the available classes
+		foreach ( glob( SHRIMPTEST_DIR . '/classes/*.php' ) as $class ) {
+			require_once $class;
+		}
+		
 		if ( !defined( 'SHRIMPTEST_MODEL_CLASS' ) )
 			define( 'SHRIMPTEST_MODEL_CLASS', 'ShrimpTest_Model' );
 		$shrimptest_model_class = SHRIMPTEST_MODEL_CLASS;
@@ -68,7 +72,6 @@ class ShrimpTest {
 		$shrimp_model->init($this);
 		$this->model = &$shrimp_model;
 		
-		require_once SHRIMPTEST_DIR . '/classes/interface.php'; // holds the ShrimpTest_Interface class
 		if ( !defined( 'SHRIMPTEST_INTERFACE_CLASS' ) )
 			define( 'SHRIMPTEST_INTERFACE_CLASS', 'ShrimpTest_Interface' );
 		$shrimptest_interface_class = SHRIMPTEST_INTERFACE_CLASS;
@@ -79,36 +82,30 @@ class ShrimpTest {
 	}
 	
 	function load_plugins( ) {
-		foreach ( glob( SHRIMPTEST_DIR . '/plugins/*.php' ) as $plugin ) {
-
-			// plugins must have the prefix plugin-, metric-, or variant-.
-			$basename = basename( $plugin );
-			if ( !preg_match( '/^(plugin|metric|variant)-/', $basename ) )
-				continue;
-				
-			unset( $export_class );
+		// include the files first
+		foreach ( glob( SHRIMPTEST_DIR . '/plugins/*.php' ) as $plugin )
 			include_once $plugin;
-
-			// If $export_class is set, this is a variant or metric plugin (an OO plugin).
-			// If not, we've already run everything so it's all good.
-			if ( isset( $export_class ) && class_exists( $export_class ) ) {
-				$object = new $export_class;
-	
-				$object->init( &$this );
-				
-				if ( stripos( $export_class, 'variant' ) ) {
-					if ( array_search( $object->code, array_keys( $this->model->variant_types ) ) )
-						wp_die( sprintf( "The variant type code <code>%s</code> has already been registered.", $code ) );
-					$this->model->variant_types[] = $object;
-				}
-	
-				if ( stripos( $export_class, 'metric' ) ) {
-					if ( array_search( $object->code, array_keys( $this->model->metric_types ) ) )
-						wp_die( sprintf( "The metric type code <code>%s</code> has already been registered.", $code ) );
-					$this->model->metric_types[] = $object;
-				}
+		
+		$all_classes = get_declared_classes();
+		foreach ( $all_classes as $class ) {
+			$parent_class = get_parent_class($class);
+			if ( $parent_class != 'ShrimpTest_Variant' && $parent_class != 'ShrimpTest_Metric' )
+				continue;
+			
+			$object = new $class; // initialize it.
+			$object->init( &$this );
+			
+			if ( $parent_class == 'ShrimpTest_Variant' ) {
+				if ( array_search( $object->code, array_keys( $this->model->variant_types ) ) )
+					wp_die( sprintf( "The variant type code <code>%s</code> has already been registered.", $code ) );
+				$this->model->variant_types[] = $object;
 			}
 
+			if ( $parent_class == 'ShrimpTest_Metric' ) {
+				if ( array_search( $object->code, array_keys( $this->model->metric_types ) ) )
+					wp_die( sprintf( "The metric type code <code>%s</code> has already been registered.", $code ) );
+				$this->model->metric_types[] = $object;
+			}
 		}
 	}
 	
