@@ -44,6 +44,7 @@ class ShrimpTest {
 		$this->cookie_days   = apply_filters( 'shrimptest_cookie_days', 365 );
 
 		$this->load_model_and_interface( );
+		$this->load_default_metric_and_variant( );
 		$this->load_plugins( );
 
 		add_action( 'init', array( &$this, 'versioning' ) );
@@ -81,32 +82,14 @@ class ShrimpTest {
 		$shrimp_interface->model = &$shrimp_model; // Interface is given a reference to Model
 	}
 	
+	function load_default_metric_and_variant( ) {
+		register_shrimptest_metric_type( 'manual', array( 'label' => 'Manual (PHP required)' ) );
+		register_shrimptest_variant_type( 'manual', array( 'label' => 'Manual (PHP required)' ) );
+	}
+	
 	function load_plugins( ) {
-		// include the files first
 		foreach ( glob( SHRIMPTEST_DIR . '/plugins/*.php' ) as $plugin )
 			include_once $plugin;
-		
-		$all_classes = get_declared_classes();
-		foreach ( $all_classes as $class ) {
-			$parent_class = get_parent_class($class);
-			if ( $parent_class != 'ShrimpTest_Variant' && $parent_class != 'ShrimpTest_Metric' )
-				continue;
-			
-			$object = new $class( &$this ); // initialize it.
-			$object->set_shrimp( &$this );
-			
-			if ( $parent_class == 'ShrimpTest_Variant' ) {
-				if ( array_search( $object->code, array_keys( $this->model->variant_types ) ) )
-					wp_die( sprintf( "The variant type code <code>%s</code> has already been registered.", $code ) );
-				$this->model->variant_types[] = $object;
-			}
-
-			if ( $parent_class == 'ShrimpTest_Metric' ) {
-				if ( array_search( $object->code, array_keys( $this->model->metric_types ) ) )
-					wp_die( sprintf( "The metric type code <code>%s</code> has already been registered.", $code ) );
-				$this->model->metric_types[] = $object;
-			}
-		}
 	}
 	
 	/*

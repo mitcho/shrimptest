@@ -21,8 +21,6 @@ class ShrimpTest_Model {
 		global $wpdb;
 		$this->shrimp = &$shrimptest_instance;
 		$this->db_prefix = apply_filters( 'shrimptest_db_prefix', "{$wpdb->prefix}shrimptest_" );
-		$this->metric_types = array( (object) array( 'code' => 'manual', 'name' => 'Manual (PHP required)' ) );
-		$this->variant_types = array( (object) array( 'code' => 'manual', 'name' => 'Manual (PHP required)' ) );
 	}
 	
 	/*
@@ -522,32 +520,27 @@ where e.experiment_id = {$experiment_id}" );
 	function get_variant_types_to_edit( $current_type = null ) {
 		$types = array();
 		foreach ( $this->variant_types as $variant ) {
-			$types[ $variant->code ] = (object) array( 'name' => $variant->name );
-			if ( $current_type == $variant->code )
-				$types[ $variant->code ]->selected = true;
+			$types[ $variant->name ] = (object) array( 'label' => $variant->label );
+			if ( $current_type == $variant->name )
+				$types[ $variant->name ]->selected = true;
 		}
+		uasort( $types, array( $this, 'sort_by_defaultness' ) );
 		apply_filters( 'shrimptest_get_variant_types_to_edit', $types, $current_type );
 		return $types;
 	}
 
-	function display_metric_value( $metric_code, $value ) {
-		foreach ( $this->metric_types as $metric ) {
-			if ( $metric->code != $metric_code )
-				continue;
-			if ( method_exists( $metric, 'display_value' ) )
-				return $metric->display_value( $value );
-		}
+	function display_metric_value( $metric_name, $value ) {
 		if ( is_numeric( $value ) && !is_int( $value ) )
-			return round( $value, 4 );
-		return $value;
+			$value = round( $value, 4 );
+		return apply_filters( 'shrimptest_display_metric_'.$metric_name.'_value', $value, $value );
 	}
 	
 	function get_metric_types_to_edit( $current_type = null ) {
 		$types = array();
 		foreach ( $this->metric_types as $metric ) {
-			$types[ $metric->code ] = (object) array( 'name' => $metric->name );
-			if ( $current_type == $metric->code )
-				$types[ $metric->code ]->selected = true;
+			$types[ $metric->name ] = (object) array( 'label' => $metric->label );
+			if ( $current_type == $metric->name )
+				$types[ $metric->name ]->selected = true;
 		}
 		uasort( $types, array( $this, 'sort_by_defaultness' ) );
 		apply_filters( 'shrimptest_get_metric_types_to_edit', $types, $current_type );
@@ -559,7 +552,75 @@ where e.experiment_id = {$experiment_id}" );
 			return -1;
 		if ( $b->_default && !$a->_default )
 			return 1;
-		return strcmp( $a->code, $b->code );
+		return strcmp( $a->name, $b->name );
 	}
 	
 } // class ShrimpTest_Model
+
+
+function register_shrimptest_variant_type( $name, $args ) {
+	global $shrimp;
+
+	if ( !isset( $shrimp->model ) )
+		wp_die( 'The ShrimpTest Model has not yet loaded!' );
+
+	if ( !is_array( $shrimp->model->variant_types ) )
+		$shrimp->model->variant_types = array();
+
+	if ( array_search( $name, array_keys( $shrimp->model->variant_types ) ) )
+		wp_die( sprintf( "The variant type code <code>%s</code> has already been registered.", $name ) );
+
+	// Args prefixed with an underscore are reserved for internal use.
+	$defaults = array(
+		'labels' => array(),
+		'description' => '',
+		'_default' => false
+	);
+	
+	if ( !is_object( $args ) )
+		$args = (object) $args;
+	
+	foreach ( $defaults as $key => $value ) {
+		if ( !isset( $args->{$key} ) )
+			$args->{$key} = $value;
+	}
+	
+	$args->name = $name;
+
+	$shrimp->model->variant_types[$name] = $args;
+
+}
+
+function register_shrimptest_metric_type( $name, $args ) {
+	global $shrimp;
+
+	if ( !isset( $shrimp->model ) )
+		wp_die( 'The ShrimpTest Model has not yet loaded!' );
+
+	if ( !is_array( $shrimp->model->metric_types ) )
+		$shrimp->model->metric_types = array();
+
+	if ( array_search( $name, array_keys( $shrimp->model->metric_types ) ) )
+		wp_die( sprintf( "The metric type code <code>%s</code> has already been registered.", $name ) );
+
+	// Args prefixed with an underscore are reserved for internal use.
+	$defaults = array(
+		'labels' => array(),
+		'description' => '',
+		'_default' => false
+	);
+	
+	if ( !is_object( $args ) )
+		$args = (object) $args;
+	
+	foreach ( $defaults as $key => $value ) {
+		if ( !isset( $args->{$key} ) )
+			$args->{$key} = $value;
+	}
+	
+	$args->name = $name;
+
+	$shrimp->model->metric_types[$name] = $args;
+
+}
+

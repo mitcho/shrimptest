@@ -4,10 +4,10 @@
  * class ShrimpTest_Metric_Conversion
  */
 
-class ShrimpTest_Metric_Conversion extends ShrimpTest_Metric {
+class ShrimpTest_Metric_Conversion {
 	
-	var $code = 'conversion';
-	var $name = 'Conversion';
+	var $name = 'conversion';
+	var $label = 'Conversion';
 	// this setting means that we will try to offer this metric as the default for new experiments:
 	var $_default = true;
 	
@@ -20,6 +20,10 @@ class ShrimpTest_Metric_Conversion extends ShrimpTest_Metric {
 		
 	function ShrimpTest_Metric_Conversion( $shrimptest_instance ) {
 
+		$this->shrimp =& $shrimptest_instance;
+		$this->model =& $shrimptest_instance->model;
+		$this->interface =& $shrimptest_instance->interface;
+
 		add_action( 'shrimptest_add_metric_extra', array( &$this, 'admin_add_metric_extra' ), 10, 1 );
 		add_action( 'shrimptest_admin_header', array( &$this, 'admin_script_and_style' ) );
 		add_filter( 'shrimptest_save_metric_conversion', array( &$this, 'admin_save_filter' ) );
@@ -31,6 +35,8 @@ class ShrimpTest_Metric_Conversion extends ShrimpTest_Metric {
 		
 		// Utility function for post query vars retreival
 		add_filter( 'wp_headers', array( &$this, 'print_query_headers' ), 10, 2 );
+		
+		add_filter( 'shrimptest_display_metric_conversion_value', array( &$this, 'display_value' ), 10, 2 );
 
 	}
 
@@ -150,8 +156,11 @@ class ShrimpTest_Metric_Conversion extends ShrimpTest_Metric {
 			return unserialize( $headers[ strtolower( $this->query_vars_header ) ] );
 	}
 	
-	function display_value( $value ) {
-		return round( $value * 100, 2 ) . '%';
+	function display_value( $value, $original_value ) {
+		return round( $original_value * 100, 2 ) . '%';
 	}
 
 }
+
+global $shrimp;
+register_shrimptest_metric_type( 'conversion', new ShrimpTest_Metric_Conversion( &$shrimp ) );

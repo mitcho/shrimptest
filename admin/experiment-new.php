@@ -52,7 +52,7 @@ function shrimptest_variants_metabox( ) {
 <tr><th><?php _e('Type','shrimptest');?>:</th><td colspan="2"><select id="variants_type" name="variants_type">
 <?php
 foreach ( $types as $code => $type ) {
-  echo "<option value=\"{$code}\"".($type->selected ?' selected="selected"':'').($type->disabled ?' disabled="disabled"':'').">" . __($type->name, 'shrimptest') . "</option>";
+  echo "<option value=\"{$code}\"".($type->selected ?' selected="selected"':'').($type->disabled ?' disabled="disabled"':'').">" . __($type->label, 'shrimptest') . "</option>";
 }
 ?>
 </select></td></tr>
@@ -103,7 +103,7 @@ function shrimptest_metric_metabox( ) {
 <tr><th><label for="metric_type"><?php _e('Metric type:','shrimptest');?></th><td><select id="metric_type" name="metric_type">
 <?php
 foreach ( $types as $code => $type ) {
-  echo "<option value=\"{$code}\"".($type->selected ?' selected="selected"':'').($type->disabled ?' disabled="disabled"':'').">" . __($type->name, 'shrimptest') . "</option>";
+  echo "<option value=\"{$code}\"".($type->selected ?' selected="selected"':'').($type->disabled ?' disabled="disabled"':'').">" . __($type->label, 'shrimptest') . "</option>";
 }
 ?>
 </select></td></tr>

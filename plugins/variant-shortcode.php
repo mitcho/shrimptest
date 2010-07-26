@@ -4,10 +4,9 @@
  * class ShrimpTest_Variant_Shortcode
  */
 
-class ShrimpTest_Variant_Shortcode extends ShrimpTest_Variant {
+class ShrimpTest_Variant_Shortcode {
 	
-	var $code = 'shortcode';
-	var $name = 'Shortcode';
+	var $label = 'Shortcode';
 	
 	var $shortcode = 'ab';
 	
@@ -15,6 +14,10 @@ class ShrimpTest_Variant_Shortcode extends ShrimpTest_Variant {
 	var $detected_experiment_ids = array( );
 	
 	function ShrimpTest_Variant_Shortcode( $shrimptest_instance ) {
+
+		$this->shrimp =& $shrimptest_instance;
+		$this->model =& $shrimptest_instance->model;
+		$this->interface =& $shrimptest_instance->interface;
 
 		add_shortcode( $this->shortcode, array( &$this, 'shortcode_handler') );
 		
@@ -190,7 +193,7 @@ class ShrimpTest_Variant_Shortcode extends ShrimpTest_Variant {
 		?>
 		<script type="text/javascript">
 		jQuery(document).ready(function($) {
-			if ($('#variants_type').val() == '<?php echo $this->code; ?>') {
+			if ($('#variants_type').val() == '<?php echo $this->name; ?>') {
 				$('#addvariant').hide();
 				$('.removevariant').hide();
 			}
@@ -201,15 +204,15 @@ class ShrimpTest_Variant_Shortcode extends ShrimpTest_Variant {
 	
 	function variant_types_filter( $types, $current_type ) {
 		// if we're looking at a shortcode-variant...
-		if ( $current_type == $this->code ) {
+		if ( $current_type == $this->name ) {
 			// disable everything which is not a shortcode
-			foreach ($types as $code => $type) {
-				if ( $code != $this->code )
-					$types[$code]->disabled = true;
+			foreach ($types as $name => $type) {
+				if ( $name != $this->name )
+					$types[$name]->disabled = true;
 			}
 		} else { // if it's any other kind of variant...
 			// disable the shortcode variant. You can't just drop in here unannounced...
-			$types[ $this->code ]->disabled = true;
+			$types[ $this->name ]->disabled = true;
 		}
 	}
 		
@@ -228,5 +231,7 @@ class ShrimpTest_Variant_Shortcode extends ShrimpTest_Variant {
 			}
 		}
 	}
-	
 }
+
+global $shrimp;
+register_shrimptest_variant_type( 'shortcode', new ShrimpTest_Variant_Shortcode( &$shrimp ) );
