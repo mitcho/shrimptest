@@ -233,5 +233,4 @@ class ShrimpTest_Variant_Shortcode {
 	}
 }
 
-global $shrimp;
-register_shrimptest_variant_type( 'shortcode', new ShrimpTest_Variant_Shortcode( &$shrimp ) );
+register_shrimptest_variant_type( 'shortcode', 'ShrimpTest_Variant_Shortcode' );

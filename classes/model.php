@@ -577,8 +577,14 @@ function register_shrimptest_variant_type( $name, $args ) {
 		'_default' => false
 	);
 	
-	if ( !is_object( $args ) )
-		$args = (object) $args;
+	if ( !is_object( $args ) ) {
+		if ( is_array( $args ) )
+			$args = (object) $args;
+		else if ( class_exists( $args ) )
+			$args = new $args( &$shrimp );
+		else
+			wp_die( "Could not load the variant type {$name}." );
+	}
 	
 	foreach ( $defaults as $key => $value ) {
 		if ( !isset( $args->{$key} ) )
@@ -610,8 +616,14 @@ function register_shrimptest_metric_type( $name, $args ) {
 		'_default' => false
 	);
 	
-	if ( !is_object( $args ) )
-		$args = (object) $args;
+	if ( !is_object( $args ) ) {
+		if ( is_array( $args ) )
+			$args = (object) $args;
+		else if ( class_exists( $args ) )
+			$args = new $args( &$shrimp );
+		else
+			wp_die( "Could not load the metric type {$name}." );
+	}
 	
 	foreach ( $defaults as $key => $value ) {
 		if ( !isset( $args->{$key} ) )

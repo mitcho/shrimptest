@@ -162,5 +162,4 @@ class ShrimpTest_Metric_Conversion {
 
 }
 
-global $shrimp;
-register_shrimptest_metric_type( 'conversion', new ShrimpTest_Metric_Conversion( &$shrimp ) );
+register_shrimptest_metric_type( 'conversion', 'ShrimpTest_Metric_Conversion' );
