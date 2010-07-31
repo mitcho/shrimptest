@@ -267,7 +267,6 @@ text-shadow: -1px -1px 2px rgba(0,0,0,0.2);
 
 			foreach( $touched_experiments as $experiment_id => $data ) {
 				$experiment = $this->model->get_experiment( $experiment_id );
-				// TODO: display experiment name
 				$experiments["admin.php?page={$this->slug}&id={$experiment_id}"] = array( 'id'=>$experiment_id, 'title'=>"Experiment {$experiment_id}: {$experiment->name} <small>(status: {$experiment->status})</small>", 'custom'=>false );
 				
 				// display each of the variants
@@ -282,9 +281,9 @@ text-shadow: -1px -1px 2px rgba(0,0,0,0.2);
 						$title .= ": {$variant->variant_name}";
 
 					if ( $data['variant'] == $variant->variant_id )
-						$title = "&#x2714; {$title}";
+						$title = "&#x2714; {$title}"; // checkmark
 					else
-						$title = "&#x3000; {$title}";
+						$title = "&#x3000; {$title}"; // full-width space
 						
 					$experiments["admin-ajax.php?action=shrimptest_override_variant&experiment_id={$experiment_id}&variant_id={$variant->variant_id}"] = array( 'id'=>$variant->variant_id, 'title'=>$title, 'custom'=>false );					
 				}
