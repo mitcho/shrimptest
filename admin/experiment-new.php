@@ -74,7 +74,7 @@ do_action( 'shrimptest_add_variant_extra', $variant, $experiment );
 			$removebutton = "<input type=\"button\" class=\"removevariant\" value=\"-\"/>";
 		else
 			$removebutton = '';
-		echo "<tr><th><label for=\"variant[{$variant->variant_id}][name]\">{$name}:</label> {$removebutton}</th><td><input type=\"text\" name=\"variant[{$variant->variant_id}][name]\" id=\"variant[{$variant->variant_id}][name]\" value=\"{$variant->variant_name}\"></input></td><td><input type=\"text\" name=\"variant[{$variant->variant_id}][assignment_weight]\" id=\"variant[{$variant->variant_id}][assignment_weight]\" value=\"".($variant->assignment_weight || 1)."\" size=\"3\"></input></td></tr>";
+		echo "<tr><th><label for=\"variant[{$variant->variant_id}][name]\">{$name}:</label> {$removebutton}</th><td><input data-variant=\"{$variant->variant_id}\" type=\"text\" name=\"variant[{$variant->variant_id}][name]\" id=\"variant[{$variant->variant_id}][name]\" value=\"{$variant->variant_name}\"></input></td><td><input type=\"text\" name=\"variant[{$variant->variant_id}][assignment_weight]\" id=\"variant[{$variant->variant_id}][assignment_weight]\" value=\"".($variant->assignment_weight || 1)."\" size=\"3\"></input></td></tr>";
 	}
 	echo "<script type=\"text/javascript\">newVariantId = {$variant->variant_id} + 1;</script>";
 ?>
@@ -134,7 +134,7 @@ add_meta_box( 'metric', 'Metric', 'shrimptest_metric_metabox', 'shrimptest_exper
 </form>
 
 <script type="text/javascript">
-jQuery(document).ready(function($){
+jQuery(function($){
 	
 	// magical rowspan adjusting code.
 	$ = jQuery;
@@ -148,7 +148,7 @@ jQuery(document).ready(function($){
 	var updateVariantsCode = function() {
 		var code = "$variant = shrimptest_get_variant( <?php echo $experiment_id;?> );\nswitch ( $variant ) {\n";
 		
-		for (i=0;i<newVariantId;i++) {
+		for (i=0; i<newVariantId; i++) {
 			code += "  case "+i+":\n    // <?php _e('Variant');?> "+i+"\n    break;\n";
 		}
 		
@@ -193,7 +193,7 @@ jQuery(document).ready(function($){
 		var newRow = $("<tr><th><label></label> <input type=\"button\" class=\"removevariant\" value=\"-\"/></th><td><input type=\"text\"></input></td><td><input type=\"text\" size=\"3\" value=\"1\"></input></td></tr>");
 		
 		newRow
-			.data('variant',newVariantId)
+			.attr('data-variant',newVariantId)
 			.find('label')
 				.text("<?php _e('Variant','shrimptest')?> "+newVariantId+':')
 				.attr('for','variant['+newVariantId+'][name]')
@@ -213,7 +213,7 @@ jQuery(document).ready(function($){
 	});
 	
 	$('.removevariant').live('click',function(){
-		if ( $(this).closest('tr').data('variant') == newVariantId - 1 )
+		if ( $(this).closest('tr').attr('data-variant') == newVariantId - 1 )
 			newVariantId --;
 		$(this).closest('tr').remove();
 		$('.removevariant').last().show();
