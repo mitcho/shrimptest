@@ -90,13 +90,7 @@ class ShrimpTest_Model {
 																	$name, $variants_type, $metric_id, $experiment_id ) );
 
 		// update shrimptest_experiments_variants		
-		foreach ( $variants as $variant_id => $variant_data )
-			$this->update_experiment_variant( $experiment_id, $variant_id, $variant_data );
-		$variant_count = count( $variants );
-		// delete extra (probably old) variants:
-		$wpdb->query( $wpdb->prepare( "delete from {$this->db_prefix}experiments_variants "
-																	. "where experiment_id = %d and variant_id >= %d",
-																	$experiment_id, $variant_count ) );
+		$this->update_experiment_variants( $experiment_id, $variants );
 		
 		if ( true ) // TODO: if enough information
 			$this->update_experiment_status( $experiment_id, 'inactive' );
@@ -310,6 +304,23 @@ where e.experiment_id = {$experiment_id}" );
 		}
 	}
 	
+	function update_experiment_variants( $experiment_id, $variants ) {
+		global $wpdb;
+		// let's first order the variants and make sure there are no skipped ID's.
+		ksort( $variants );
+		$variants = array_values( $variants );
+
+		// TODO: rewrite this to decrease the number of queries that are called.
+		foreach ( $variants as $variant_id => $variant_data )
+			$this->update_experiment_variant( $experiment_id, $variant_id, $variant_data );
+
+		$variant_count = count( $variants );
+		// delete extra (probably old) variants:
+		$wpdb->query( $wpdb->prepare( "delete from {$this->db_prefix}experiments_variants "
+																	. "where experiment_id = %d and variant_id >= %d",
+																	$experiment_id, $variant_count ) );
+	}
+	
 	/*
 	 * AGGREGATE METRIC FUNCTIONS
 	 */
@@ -519,12 +530,18 @@ where e.experiment_id = {$experiment_id}" );
 
 	function get_variant_types_to_edit( $current_type = null ) {
 		$types = array();
+		if ( $this->variant_types[ $current_type ]->_programmatic )
+			$locked = true;
 		foreach ( $this->variant_types as $variant ) {
 			$types[ $variant->name ] = (object) array( 'label' => $variant->label );
+			if ( $variant->_programmatic )
+				$types[ $variant->name ]->disabled = true;
 			if ( $current_type == $variant->name )
 				$types[ $variant->name ]->selected = true;
+			else if ( $locked )
+				$types[ $variant->name ]->disabled = true;
 		}
-		uasort( $types, array( $this, 'sort_by_defaultness' ) );
+		uasort( $types, array( $this, 'sort_by_defaultness' ) );		
 		apply_filters( 'shrimptest_get_variant_types_to_edit', $types, $current_type );
 		return $types;
 	}
@@ -537,10 +554,16 @@ where e.experiment_id = {$experiment_id}" );
 	
 	function get_metric_types_to_edit( $current_type = null ) {
 		$types = array();
+		if ( $this->metric_types[ $current_type ]->_programmatic )
+			$locked = true;
 		foreach ( $this->metric_types as $metric ) {
 			$types[ $metric->name ] = (object) array( 'label' => $metric->label );
+			if ( $metric->_programmatic )
+				$types[ $metric->name ]->disabled = true;
 			if ( $current_type == $metric->name )
 				$types[ $metric->name ]->selected = true;
+			else if ( $locked )
+				$types[ $metric->name ]->disabled = true;
 		}
 		uasort( $types, array( $this, 'sort_by_defaultness' ) );
 		apply_filters( 'shrimptest_get_metric_types_to_edit', $types, $current_type );
