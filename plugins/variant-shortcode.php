@@ -8,6 +8,9 @@ class ShrimpTest_Variant_Shortcode {
 	
 	var $label = 'Shortcode';
 	
+	// can only be set programmatically:
+	var $_programmatic = true;
+	
 	var $shortcode = 'ab';
 	
 	var $experiment_ids_meta_key = '_shrimptest_shortcode_experiments';
@@ -22,8 +25,6 @@ class ShrimpTest_Variant_Shortcode {
 		add_shortcode( $this->shortcode, array( &$this, 'shortcode_handler') );
 		
 		add_filter( 'content_save_pre', array( &$this, 'detection_filter' ), 15 );
-		
-		add_filter( 'shrimptest_get_variant_types_to_edit', array( &$this, 'variant_types_filter' ), 10, 2 );
 
 		add_action( 'shrimptest_add_variant_extra', array( &$this, 'admin_add_variant_extra' ) );
 		add_action( 'shrimptest_admin_header', array( &$this, 'admin_script_and_style' ) );
@@ -89,15 +90,15 @@ class ShrimpTest_Variant_Shortcode {
 
 	function process_detected_shortcode( $args, $content ) {
 
-		if ( isset( $args['id'] ) ) { 
+		if ( isset( $args['id'] ) ) {
 			$experiment_id = $args['id'];
 			unset( $args['id'] );
 		} else { // create a new experiment
 			$experiment_id = $this->model->get_reserved_experiment_id( );
+			$this->model->update_variants_type( $experiment_id, 'shortcode' );
 		}
 		$this->detected_experiment_ids[] = $experiment_id;
 		// make sure that this experiment is a shortcode-variant experiment.
-		$this->model->update_variants_type( $experiment_id, 'shortcode' );
 			
 		$status = $this->model->get_experiment_status( $experiment_id );
 		if ( $status == 'reserved' && count( $args ) )
@@ -200,20 +201,6 @@ class ShrimpTest_Variant_Shortcode {
 		});
 		</script>
 		<?php
-	}
-	
-	function variant_types_filter( $types, $current_type ) {
-		// if we're looking at a shortcode-variant...
-		if ( $current_type == $this->name ) {
-			// disable everything which is not a shortcode
-			foreach ($types as $name => $type) {
-				if ( $name != $this->name )
-					$types[$name]->disabled = true;
-			}
-		} else { // if it's any other kind of variant...
-			// disable the shortcode variant. You can't just drop in here unannounced...
-			$types[ $this->name ]->disabled = true;
-		}
 	}
 		
 	function edit_helper( ) {
