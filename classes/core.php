@@ -196,6 +196,9 @@ class ShrimpTest {
 	function get_visitor_variant( $experiment_id, $visitor_id = false ) {
 		global $wpdb;
 
+		if ( defined('WP_ADMIN') && WP_ADMIN )
+			return null;
+
 		// If the user is exempt (like a logged in admin), check if they've overridden the variant.
 		// If not, it will return null for control.
 		if ( $this->exempt_visitor( ) ) {
@@ -261,7 +264,7 @@ class ShrimpTest {
 	function touch_experiment( $experiment_id, $args ) {
 		if ( !is_array( $this->touched_experiments[$experiment_id] ) )
 			$this->touched_experiments[$experiment_id] = array();
-		$this->touched_experiments[$experiment_id] = array_merge_recursive( $this->touched_experiments[$experiment_id], $args );
+		$this->touched_experiments[$experiment_id] = array_merge( $this->touched_experiments[$experiment_id], $args );
 	}
 	function get_touched_experiments( ) {
 		return apply_filters( 'shrimptest_touched_experiments', $this->touched_experiments );
@@ -272,7 +275,7 @@ class ShrimpTest {
 	function touch_metric( $metric_id, $args ) {
 		if ( !is_array( $this->touched_metrics ) )
 			$this->touched_metrics = array();
-		$this->touched_metrics = array_merge_recursive( $this->touched_metrics, array( $metric_id => $args ) );
+		$this->touched_metrics = array_merge( $this->touched_metrics, array( $metric_id => $args ) );
 	}
 	function get_touched_metrics( ) {
 		return apply_filters( 'shrimptest_touched_metrics', $this->touched_metrics );
