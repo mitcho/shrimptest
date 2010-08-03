@@ -9,8 +9,6 @@ if ( isset( $_GET['id'] ) ) {
 	wp_die('You must come in with an ID.');
 }
 
-$metric_id = $this->model->get_metric_id( $experiment_id );
-
 $experiments = $this->model->get_experiments( array( 'experiment_id'=>$experiment_id, 'status'=>array('inactive','reserved') ) );
 
 if ( !count($experiments) )
@@ -52,19 +50,19 @@ function shrimptest_variants_metabox( ) {
 <tr><th><?php _e('Type','shrimptest');?>:</th><td colspan="2"><select id="variants_type" name="variants_type">
 <?php
 foreach ( $types as $code => $type ) {
-  echo "<option value=\"{$code}\"".($type->selected ?' selected="selected"':'').($type->disabled ?' disabled="disabled"':'').">" . __($type->label, 'shrimptest') . "</option>";
+  echo "<option value=\"{$code}\"".(isset($type->selected) && $type->selected ?' selected="selected"':'').(isset($type->disabled) && $type->disabled ?' disabled="disabled"':'').">" . __($type->label, 'shrimptest') . "</option>";
 }
 ?>
 </select></td></tr>
 <?php
-do_action( 'shrimptest_add_variant_extra', $variant, $experiment );
+do_action( 'shrimptest_add_variant_extra', $experiment );
 
 	$variants = $shrimp->model->get_experiment_variants( $experiment->experiment_id );
 	if ( empty( $variants ) )
-		$variants = array( (object) array( 'variant_id'=>0 ), (object) array( 'variant_id'=>1 ) );
+		$variants = array( (object) array( 'variant_id'=>0, 'variant_name'=>'' ), (object) array( 'variant_id'=>1, 'variant_name'=>'' ) );
 ?>
 <tr><th></th><th><?php _e('Name','shrimptest');?>:</th><th><?php _e('Assignment weight','shrimptest');?>:</th></tr>
-<tr><th><label for="variant[0][name]"><?php _e('Control','shrimptest');?>:</label> <input type="button" id="addvariant" value="+"/></th><td><input type="text" name="variant[0][name]" id="variant[0][name]" value="<?php echo $variants[0]->variant_name;?>"></input></td><td><input type="text" name="variant[0][assignment_weight]" id="variant[0][assignment_weight]" size="3" value="<?php echo ($variants[0]->assignment_weight || 1);?>"></input></td></tr>
+<tr><th><label for="variant[0][name]"><?php _e('Control','shrimptest');?>:</label> <input type="button" id="addvariant" value="+"/></th><td><input type="text" name="variant[0][name]" id="variant[0][name]" value="<?php echo $variants[0]->variant_name;?>"></input></td><td><input type="text" name="variant[0][assignment_weight]" id="variant[0][assignment_weight]" size="3" value="<?php echo (isset($variants[0]->assignment_weight) ? $variants[0]->assignment_weight : 1);?>"></input></td></tr>
 <?php
 	foreach ( $variants as $variant ) {
 		if ( $variant->variant_id == 0 )
@@ -74,7 +72,7 @@ do_action( 'shrimptest_add_variant_extra', $variant, $experiment );
 			$removebutton = "<input type=\"button\" class=\"removevariant\" value=\"-\"/>";
 		else
 			$removebutton = '';
-		echo "<tr><th><label for=\"variant[{$variant->variant_id}][name]\">{$name}:</label> {$removebutton}</th><td><input data-variant=\"{$variant->variant_id}\" type=\"text\" name=\"variant[{$variant->variant_id}][name]\" id=\"variant[{$variant->variant_id}][name]\" value=\"{$variant->variant_name}\"></input></td><td><input type=\"text\" name=\"variant[{$variant->variant_id}][assignment_weight]\" id=\"variant[{$variant->variant_id}][assignment_weight]\" value=\"".($variant->assignment_weight || 1)."\" size=\"3\"></input></td></tr>";
+		echo "<tr><th><label for=\"variant[{$variant->variant_id}][name]\">{$name}:</label> {$removebutton}</th><td><input data-variant=\"{$variant->variant_id}\" type=\"text\" name=\"variant[{$variant->variant_id}][name]\" id=\"variant[{$variant->variant_id}][name]\" value=\"{$variant->variant_name}\"></input></td><td><input type=\"text\" name=\"variant[{$variant->variant_id}][assignment_weight]\" id=\"variant[{$variant->variant_id}][assignment_weight]\" value=\"".(isset($variant->assignment_weight) ? $variant->assignment_weight : 1)."\" size=\"3\"></input></td></tr>";
 	}
 	echo "<script type=\"text/javascript\">newVariantId = {$variant->variant_id} + 1;</script>";
 ?>
@@ -83,8 +81,7 @@ do_action( 'shrimptest_add_variant_extra', $variant, $experiment );
 }
 
 function shrimptest_metric_metabox( ) {
-	global $experiment_id, $experiment, $metric_id, $shrimp;
-	$metric = $shrimp->model->get_metric( $metric_id );
+	global $experiment_id, $experiment, $shrimp;
 	
 	$types = $shrimp->model->get_metric_types_to_edit( $experiment->metric_type );
 	
@@ -92,23 +89,22 @@ function shrimptest_metric_metabox( ) {
 		wp_die( sprintf("The metric type code <code>%s</code> is not currently registered. This experiment cannot be edited nor activated.", $experiment->metric_type ) );
 
 ?>
-<input type="hidden" name="metric_id" value="<?php echo $metric_id; ?>"></input>
 <div class="samplecodediv metric_extra metric_extra_manual">
 <h4>Sample code:</h4>
 <p><?php _e("Execute the following code when the visitor's metric value is established:",'shrimptest');?></p>
-<pre id="variants_code" class="samplecode">shrimptest_update_metric( <?php echo $metric_id; ?>, <em>value</em> );</pre>
+<pre id="variants_code" class="samplecode">shrimptest_update_metric( <?php echo $experiment_id; ?>, <em>value</em> );</pre>
 </div>
 <table class='shrimptest'>
-<!--<tr><th><?php _e('ID:','shrimptest');?></th><td><code><?php echo $metric_id; ?></code></td></tr>-->
+<!--<tr><th><?php _e('ID:','shrimptest');?></th><td><code><?php echo $experiment_id; ?></code></td></tr>-->
 <tr><th><label for="metric_type"><?php _e('Metric type:','shrimptest');?></th><td><select id="metric_type" name="metric_type">
 <?php
 foreach ( $types as $code => $type ) {
-  echo "<option value=\"{$code}\"".($type->selected ?' selected="selected"':'').($type->disabled ?' disabled="disabled"':'').">" . __($type->label, 'shrimptest') . "</option>";
+  echo "<option value=\"{$code}\"".(isset($type->selected) && $type->selected ?' selected="selected"':'').(isset($type->disabled) && $type->disabled ?' disabled="disabled"':'').">" . __($type->label, 'shrimptest') . "</option>";
 }
 ?>
 </select></td></tr>
 <?php
-do_action( 'shrimptest_add_metric_extra', $metric, $experiment );
+do_action( 'shrimptest_add_metric_extra', $experiment );
 ?>
 <tr class="metric_extra metric_extra_manual"><th><?php _e('Direction','shrimptest');?>:</th><td><?php echo sprintf(__("%s are better.",'shrimptest'), '<select name="metric[manual][direction]" id="metric_extra_manual_direction"><option value="larger">'.__('Larger values','shrimptest').'</option><option value="smaller">'.__('Smaller values','shrimptest').'</option></select>');?></td></tr>
 <tr class="metric_extra metric_extra_manual"><th>Default value:</th><td><input id="metric_extra_manual_ifnull" name="metric[manual][ifnull]" type="checkbox" checked="checked"/> <label for="metric_extra_manual_ifnull"><?php echo sprintf(__("Assume value of %s for visitors who have not triggered an explicit metric update.",'shrimptest'), '</label><input name="metric[manual][nullvalue]" id="metric_extra_manual_nullvalue" value="0" size="3" type="text"/><label for="metric_extra_manual_nullvalue">');?></label></td></tr>

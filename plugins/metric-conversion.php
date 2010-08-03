@@ -40,10 +40,10 @@ class ShrimpTest_Metric_Conversion {
 
 	}
 
-	function admin_add_metric_extra( $metric ) {
-		if ( isset( $metric->data['conversion_url'] ) ) {
+	function admin_add_metric_extra( $experiment ) {
+		if ( isset( $experiment->data['conversion_url'] ) ) {
 			$class = '';
-			$value = $metric->data['conversion_url'];
+			$value = $experiment->data['conversion_url'];
 		} else {
 			$class = 'default';
 			$value = get_bloginfo( 'url' );
@@ -94,7 +94,7 @@ class ShrimpTest_Metric_Conversion {
 			query_posts( $query_vars );
 			$title = wp_title( '|', false, 'right' );
 			$title = preg_replace( '/^\s*\|?\s*(.*?)\s*\|?\s*$/', '$1', $title );
-			$metric_data['name'] = sprintf( __("Conversion: <a href=\"%s\">%s</a>",'shrimptest'), $url, $title );
+			$metric_data['metric_name'] = sprintf( __("Conversion: <a href=\"%s\">%s</a>",'shrimptest'), $url, $title );
 			$metric_data['conversion_query_vars'] = $query_vars;
 	
 			// reset the conversion rules cache
@@ -123,9 +123,9 @@ class ShrimpTest_Metric_Conversion {
 		$rules = get_site_transient( "{$this->prefix}conversion_rules" );
 		if ( !$rules || empty( $rules ) ) {
 			$rules = array();
-			foreach ( $this->shrimp->model->get_metrics( array( 'type' => 'conversion' ) ) as $metric ) {
-				if ( isset( $metric->data['conversion_query_vars'] ) )
-					$rules[ $metric->metric_id ] = $metric->data['conversion_query_vars'];
+			foreach ( $this->shrimp->model->get_experiments( array( 'metric_type' => 'conversion' ) ) as $experiment ) {
+				if ( isset( $experiment->data['conversion_query_vars'] ) )
+					$rules[ $experiment->experiment_id ] = $experiment->data['conversion_query_vars'];
 			}
 			set_site_transient( "{$this->prefix}conversion_rules", $rules );
 		}

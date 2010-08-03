@@ -40,7 +40,7 @@ class ShrimpTest_Variant_Title {
 	}
 	
 	function title_metabox( ) {
-
+		global $post_ID;
 		// check to see if the experiment is already running. In that case, don't let us change.
 		$already_running = false;
 		$experiment_id = get_post_meta( $post_ID, $this->experiment_id_meta_key, true );
@@ -266,7 +266,7 @@ jQuery(function($){
 		}
 	}
 
-	function admin_add_variant_extra( $metric ) {
+	function admin_add_variant_extra( ) {
 		// TODO: add a real link to this message.
 		?>
 		<tr class="variants_extra variants_extra_shortcode"><td colspan="3"><p><?php _e( "You can edit the variants by visiting the original post/page.", 'shrimptest' );?></p></td></tr>

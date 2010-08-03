@@ -16,7 +16,7 @@ class ShrimpTest {
 	var $cookie_days;
 
 	// versioning:	
-	var $db_version = 17; // change to force database schema update
+	var $db_version = 28; // change to force database schema update
 	
 	// variables to track information about/throughout the current execution
 	var $visitor_id;
@@ -217,17 +217,17 @@ class ShrimpTest {
 	
 	/*
 	 * update_visitor_metric
-	 * @param int     $metric_id
+	 * @param int     $experiment_id
 	 * @param float   $value
 	 * @param boolean $monotonic - if true, will only update if the value is greater (optional)
 	 * @param int     $visitor_id
 	 */ 
-	function update_visitor_metric( $metric_id, $value, $monotonic = false, $visitor_id = false ) {
+	function update_visitor_metric( $experiment_id, $value, $monotonic = false, $visitor_id = false ) {
 		global $wpdb;
 
 		// if the user is exempt (like a logged in admin), return control.
 		if ( $this->exempt_visitor( ) ) {
-			$this->touch_metric( $metric_id, array( 'value' => null ) );
+			$this->touch_metric( $experiment_id, array( 'value' => null ) );
 			return null;
 		}
 
@@ -236,9 +236,9 @@ class ShrimpTest {
 		if ( is_null( $visitor_id ) )
 			return null;
 
-		$this->touch_metric( $metric_id, array( 'value' => $value ) );
+		$this->touch_metric( $experiment_id, array( 'value' => $value ) );
 		
-		return $this->model->update_visitor_metric( $metric_id, $value, $monotonic, $visitor_id );
+		return $this->model->update_visitor_metric( $experiment_id, $value, $monotonic, $visitor_id );
 	}
 
 	function get_override_variant( $experiment_id ) {
@@ -272,10 +272,10 @@ class ShrimpTest {
 	/*
 	 * touch_metric: like touch_experiment, but for metrics
 	 */
-	function touch_metric( $metric_id, $args ) {
+	function touch_metric( $experiment_id, $args ) {
 		if ( !is_array( $this->touched_metrics ) )
 			$this->touched_metrics = array();
-		$this->touched_metrics = array_merge( $this->touched_metrics, array( $metric_id => $args ) );
+		$this->touched_metrics = array_merge( $this->touched_metrics, array( $experiment_id => $args ) );
 	}
 	function get_touched_metrics( ) {
 		return apply_filters( 'shrimptest_touched_metrics', $this->touched_metrics );
@@ -393,59 +393,53 @@ setTimeout(function() {
 		require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
 		
 		$dbSql = array(
-						"CREATE TABLE `{$this->db_prefix}visitors` (
-							`visitor_id` BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY ,
-							`cookie` BINARY(16) NOT NULL UNIQUE KEY ,
-							`user_agent` VARCHAR(255) NOT NULL ,
-							`ip` INT UNSIGNED NULL ,
-							`js` BOOL NOT NULL DEFAULT 0 ,
-							`cookies` BOOL NOT NULL DEFAULT 0 ,
-							`localstorage` BOOL NOT NULL DEFAULT 0 ,
-							`timestamp` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+						"CREATE TABLE {$this->model->db_prefix}visitors (
+							visitor_id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY ,
+							cookie BINARY(16) NOT NULL UNIQUE KEY ,
+							user_agent VARCHAR(255) NOT NULL ,
+							ip INT UNSIGNED NULL ,
+							js BOOL NOT NULL DEFAULT 0 ,
+							cookies BOOL NOT NULL DEFAULT 0 ,
+							localstorage BOOL NOT NULL DEFAULT 0 ,
+							timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 						) ENGINE = MYISAM ;",
 						// TODO: question: should experiments just be a custom post type?
-						"CREATE TABLE `{$this->db_prefix}experiments` (
-							`experiment_id` INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY ,
-							`name` VARCHAR(255) NOT NULL ,
-							`metric_id` INT UNSIGNED NOT NULL ,
-							`status` varchar(30) default 'inactive' ,
-							`variants_type` VARCHAR(255) default 'manual',
-							`start_time` TIMESTAMP NULL ,
-							`end_time` TIMESTAMP NULL ,
-							`timestamp` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+						"CREATE TABLE {$this->model->db_prefix}experiments (
+							experiment_id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY ,
+							name VARCHAR(255) NOT NULL ,
+							status varchar(30) default 'inactive' ,
+							variants_type VARCHAR(255) default 'manual',
+							metric_name VARCHAR(255) NOT NULL ,
+							metric_type VARCHAR(255) default 'manual',
+							start_time TIMESTAMP NULL ,
+							end_time TIMESTAMP NULL ,
+							data LONGTEXT NULL,
+							timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 						) ENGINE = MYISAM ;",
-						"CREATE TABLE `{$this->db_prefix}experiments_variants` (
-							`experiment_id` INT UNSIGNED NOT NULL ,
-							`variant_id` INT UNSIGNED NOT NULL DEFAULT 0
+						"CREATE TABLE {$this->model->db_prefix}experiments_variants (
+							experiment_id INT UNSIGNED NOT NULL ,
+							variant_id INT UNSIGNED NOT NULL DEFAULT 0
 								COMMENT 'variant 0 is always \"control\"',
-							`assignment_weight` FLOAT UNSIGNED NOT NULL DEFAULT 1 ,
-							`variant_name` VARCHAR( 255 ) NOT NULL ,
-							`data` LONGTEXT NULL,
-							PRIMARY KEY (`experiment_id`,`variant_id`)
+							assignment_weight FLOAT UNSIGNED NOT NULL DEFAULT 1 ,
+							variant_name VARCHAR( 255 ) NOT NULL ,
+							data LONGTEXT NULL,
+							PRIMARY KEY (experiment_id,variant_id)
 						) ENGINE = MYISAM ;",
-						"CREATE TABLE `{$this->db_prefix}visitors_variants` (
-							`visitor_id` BIGINT(20) NOT NULL ,
-							`experiment_id` INT NOT NULL ,
-							`variant_id` INT NOT NULL ,
-							`timestamp` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+						"CREATE TABLE {$this->model->db_prefix}visitors_variants (
+							visitor_id BIGINT(20) NOT NULL ,
+							experiment_id INT NOT NULL ,
+							variant_id INT NOT NULL ,
+							timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 						) ENGINE = MYISAM ;",
-						"CREATE TABLE `{$this->db_prefix}visitors_metrics` (
-							`visitor_id` INT NOT NULL ,
-							`metric_id` INT UNSIGNED NOT NULL 
-								COMMENT 'right now metric_id is tied to experiment_id',
-							`value` FLOAT NOT NULL ,
-							`timestamp` TIMESTAMP NOT NULL
+						"CREATE TABLE {$this->model->db_prefix}visitors_metrics (
+							visitor_id INT NOT NULL ,
+							experiment_id INT UNSIGNED NOT NULL ,
+							value FLOAT NOT NULL ,
+							timestamp TIMESTAMP NOT NULL
 								DEFAULT CURRENT_TIMESTAMP
 								ON UPDATE CURRENT_TIMESTAMP ,
-							PRIMARY KEY ( `visitor_id` , `metric_id` )
-						) ENGINE = MYISAM ;",
-						"CREATE TABLE `{$this->db_prefix}metrics` (
-							`metric_id` INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY ,
-							`name` VARCHAR( 255 ) NOT NULL,
-							`type` VARCHAR( 255 ) NOT NULL default 'conversion',
-							`data` LONGTEXT NULL,
-							`timestamp` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-						) ENGINE = MYISAM ");
+							PRIMARY KEY ( visitor_id , experiment_id )
+						) ENGINE = MYISAM ;");
 		$dbSql = apply_filters( 'shrimptest_dbdelta_sql', $dbSql );
 		dbDelta( $dbSql );
 		

@@ -8,12 +8,12 @@
 add_filter('shrimptest_dbdelta_sql', 'shrimptest_cache_support_add_sql');
 function shrimptest_cache_support_add_sql( $sql ) {
 	global $shrimp;
-	array_push($sql, "CREATE TABLE `{$shrimp->model->db_prefix}request_touches` (
-											`request` varchar(1000) NOT NULL DEFAULT '',
-											`experiment_id` int(11) unsigned DEFAULT NULL,
-											`metric_id` int(11) unsigned DEFAULT NULL,
-											KEY `request` (`request`),
-											KEY `experiment_id` (`experiment_id`)
+	array_push($sql, "CREATE TABLE {$shrimp->model->db_prefix}request_touches (
+											request varchar(1000) NOT NULL DEFAULT '',
+											experiment_id int(11) unsigned DEFAULT NULL,
+											metric_id int(11) unsigned DEFAULT NULL,
+											KEY request (request),
+											KEY experiment_id (experiment_id)
 										) ENGINE=MyISAM" );
 	return $sql;
 }
