@@ -227,11 +227,14 @@ class ShrimpTest_Model {
 														 'human' => date('F j, Y, g:i:s a'),
 														 'time' => timer_stop() );
 		
-		$stats = apply_filters( 'shrimptest_experiment_stats', $stats, $experiment_id );
+		$stats = apply_filters( 'shrimptest_experiment_stats', $stats, $experiment );
 		
 		$cache_timeout = $this->stats_timeout;
 		if ( isset( $experiment->data['cache_timeout'] ) )
 			$cache_timeout = $experiment->data['cache_timeout'];
+		// if the experiment is inactive, the cache can be forever!
+		if ( $experiment->status != 'active')
+			$cache_timeout = 0; // a timeout of 0 means it will never expire
 		set_transient($this->stats_transient . $experiment_id, $stats, $cache_timeout);
 		
 		return $stats;
@@ -384,7 +387,8 @@ class ShrimpTest_Model {
 		global $wpdb;
 			
 		// if the experiment is not turned on, use the control.
-		if ( $this->get_experiment_status( $experiment_id ) != 'active' ) {
+		$status = $this->get_experiment_status( $experiment_id );
+		if ( $status != 'active' ) {
 			$this->shrimp->touch_experiment( $experiment_id, array( 'variant' => null ) );
 			return null;
 		}
