@@ -36,7 +36,7 @@ class ShrimpTest_Metric_Conversion {
 		// Utility function for post query vars retreival
 		add_filter( 'wp_headers', array( &$this, 'print_query_headers' ), 10, 2 );
 		
-		add_filter( 'shrimptest_display_metric_conversion_value', array( &$this, 'display_value' ), 10, 2 );
+		add_filter( 'shrimptest_display_metric_conversion_value', array( &$this, 'display_value' ), 10, 3 );
 
 	}
 
@@ -156,8 +156,8 @@ class ShrimpTest_Metric_Conversion {
 			return unserialize( $headers[ strtolower( $this->query_vars_header ) ] );
 	}
 	
-	function display_value( $value, $original_value ) {
-		return round( $original_value * 100, 2 ) . '%';
+	function display_value( $value, $original_value, $raw ) {
+		return round( $original_value * 100, 2 ) . '% <span class="rawvalue" alt="raw total">' . $raw . '</span>';
 	}
 
 }

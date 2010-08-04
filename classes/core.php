@@ -402,7 +402,7 @@ setTimeout(function() {
 							cookies BOOL NOT NULL DEFAULT 0 ,
 							localstorage BOOL NOT NULL DEFAULT 0 ,
 							timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-						) ENGINE = MYISAM ;",
+						);",
 						// TODO: question: should experiments just be a custom post type?
 						"CREATE TABLE {$this->model->db_prefix}experiments (
 							experiment_id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY ,
@@ -415,7 +415,7 @@ setTimeout(function() {
 							end_time TIMESTAMP NULL ,
 							data LONGTEXT NULL,
 							timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-						) ENGINE = MYISAM ;",
+						);",
 						"CREATE TABLE {$this->model->db_prefix}experiments_variants (
 							experiment_id INT UNSIGNED NOT NULL ,
 							variant_id INT UNSIGNED NOT NULL DEFAULT 0
@@ -424,13 +424,13 @@ setTimeout(function() {
 							variant_name VARCHAR( 255 ) NOT NULL ,
 							data LONGTEXT NULL,
 							PRIMARY KEY (experiment_id,variant_id)
-						) ENGINE = MYISAM ;",
+						);",
 						"CREATE TABLE {$this->model->db_prefix}visitors_variants (
 							visitor_id BIGINT(20) NOT NULL ,
 							experiment_id INT NOT NULL ,
 							variant_id INT NOT NULL ,
 							timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-						) ENGINE = MYISAM ;",
+						);",
 						"CREATE TABLE {$this->model->db_prefix}visitors_metrics (
 							visitor_id INT NOT NULL ,
 							experiment_id INT UNSIGNED NOT NULL ,
@@ -439,7 +439,7 @@ setTimeout(function() {
 								DEFAULT CURRENT_TIMESTAMP
 								ON UPDATE CURRENT_TIMESTAMP ,
 							PRIMARY KEY ( visitor_id , experiment_id )
-						) ENGINE = MYISAM ;");
+						);");
 		$dbSql = apply_filters( 'shrimptest_dbdelta_sql', $dbSql );
 		dbDelta( $dbSql );
 		

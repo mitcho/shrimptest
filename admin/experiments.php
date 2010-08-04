@@ -57,7 +57,7 @@ foreach( $experiments as $experiment ) {
 	else
 		$experiment_name = "#{$experiment->experiment_id}";
 		
-	echo "<tr><td><strong>$experiment_name</strong>";
+	echo "<tr data-experiment='{$experiment->experiment_id}'><td><strong>$experiment_name</strong>";
 
 	// DO ROW ACTIONS
 	$actions = array();
@@ -93,9 +93,18 @@ foreach( $experiments as $experiment ) {
 	if ( isset( $end_date ) && $end_date )
 		$status .= "<br/><small>Finished: {$end_date}</small>";
 	
-	echo "</td><td>{$status}</td><td>{$experiment->metric_name}</td><td>{$total->N}</td><td>" . $this->model->display_metric_value($experiment->metric_type, $total->avg) . "</td><td>&nbsp;</td></tr>\n";
+	echo "</td><td>{$status}</td><td>{$experiment->metric_name}</td><td>{$total->N}</td><td>" . $this->model->display_metric_value($experiment->metric_type, $total->avg, $total->sum) . "</td><td>&nbsp;</td></tr>\n";
 	
 	unset( $control );
+	
+	if ( isset( $stats['stats'] ) ) { // DEBUG
+		$stats_stats = $stats['stats'];
+		unset( $stats['stats'] );
+		echo '<!--';
+		var_dump( $stats_stats );
+		echo '-->';
+	}
+	
 	foreach ( $stats as $key => $stat ) {
 		if ($total->assignment_weight)
 			$assignment_percentage = round( $stat->assignment_weight / $total->assignment_weight * 1000 ) / 10;
@@ -105,19 +114,16 @@ foreach( $experiments as $experiment ) {
 		$pvalue = '<span class="na">' . __( 'N/A', 'shrimptest' ) . '</span>';
 		$pmessage = '<span class="na">' . __( 'N/A', 'shrimptest' ) . '</span>';
 
-		$avg = $this->model->display_metric_value($experiment->metric_type, $stat->avg);
+		$avg = $this->model->display_metric_value($experiment->metric_type, $stat->avg, $stat->sum);
 
 		if ($key === 0) {
 			$control = $stat;
 			$name = __("Control", 'shrimptest');
 		} else {
 			$name = __("Variant",'shrimptest') . " " . $stat->variant_id;
-			$zscore = $this->model->zscore( $control, $stat );
-			if ( $zscore !== null ) {
-				$type = 'better'; // "better", "different"
-				// TODO: add "worse"
-				$p = $this->model->normal_cdf($zscore,($type == 'better'?'left':'middle'));
+			$p = $stat->p;
 
+			if ( $p != null ) {
 				$null_p = round( 1 - $p, 4 );
 				$null_p = "p &lt; {$null_p}";
 
@@ -127,14 +133,14 @@ foreach( $experiments as $experiment ) {
 						$desc = "very confident";
 					else if ( $p >= 0.95 )
 						$desc = "confident";
-					$pmessage = sprintf( "We are <strong>%s</strong> that variant %d is %s than the control. (%s)", $desc, $stat->variant_id, $type, $null_p );
+					$pmessage = sprintf( "We are <strong>%s</strong> that variant %d is %s than the control. (%s)", $desc, $stat->variant_id, $stat->type, $null_p );
 				} else {
-					$pmessage = sprintf( "We cannot confidently say whether or not variant %d is %s than the control. Perhaps there is no effect or there is not enough data. (%s)", $stat->variant_id, $type, $null_p );
+					$pmessage = sprintf( "We cannot confidently say whether or not variant %d is %s than the control. Perhaps there is no effect or there is not enough data. (%s)", $stat->variant_id, $stat->type, $null_p );
 				}
 			}
 		}
 
-		echo "<tr class=\"variant\" data-experiment=\"{$experiment->experiment_id}\"><td><strong>{$name}:</strong> {$stat->variant_name} ($assignment_percentage%)</td><td colspan='2'></td><td>{$stat->N}</td><td>{$avg}</td><td>$pmessage</td></tr>";
+		echo "<tr data-experiment='{$experiment->experiment_id}' class=\"variant\" data-experiment=\"{$experiment->experiment_id}\"><td><strong>{$name}:</strong> {$stat->variant_name} ($assignment_percentage%)</td><td colspan='2'></td><td>{$stat->N}</td><td>{$avg}</td><td>$pmessage</td></tr>";
 
 	}
 	
@@ -148,26 +154,48 @@ foreach( $experiments as $experiment ) {
 .na {
 	color: #ccc;
 }
+.rawvalue {
+	display: none;
+}
+.rawvalue.visible {
+	display: inline;
+	color: #999;
+}
 </style>
 <script type="text/javascript">
-function toggleVariants( id ) {
-  if (jQuery('a[data-experiment='+id+']').text() == '<?php _e("Show variants", "shrimptest");?>') {
-    jQuery('a[data-experiment='+id+']').text('<?php _e("Hide variants", "shrimptest");?>');
-    jQuery('.variant[data-experiment='+id+']').show();
-  } else {
-    jQuery('a[data-experiment='+id+']').text('<?php _e("Show variants", "shrimptest");?>');
-    jQuery('.variant[data-experiment='+id+']').hide();
-  }
-}
+jQuery(function($) {
+	function toggleVariants( id ) {
+		if ($('a[data-experiment='+id+']').text() == '<?php _e("Show variants", "shrimptest");?>') {
+			$('a[data-experiment='+id+']').text('<?php _e("Hide variants", "shrimptest");?>');
+			$('.variant[data-experiment='+id+']').show();
+		} else {
+			$('a[data-experiment='+id+']').text('<?php _e("Show variants", "shrimptest");?>');
+			$('.variant[data-experiment='+id+']').hide();
+		}
+	}
+	
+	$('a.showhide').each(function(i,item) {
+		var jitem = $(item);
+		var id = jitem.attr('data-experiment');
+		toggleVariants(id);
+		jitem.click(function() {
+			toggleVariants(id);
+		});
+	});
 
-jQuery('a.showhide').each(function(i,item) {
-  var jitem = jQuery(item);
-  var id = jitem.attr('data-experiment');
-  toggleVariants(id);
-  jitem.click(function() {
-    toggleVariants(id);
-  });
-})
+	$('tr').each(function() {
+		var experiment = $(this).attr('data-experiment');
+		if (experiment) {
+			$(this).mouseenter(function(){
+				$('[data-experiment=' + experiment + '] .rawvalue').addClass('visible');
+			})
+			.mouseleave(function(){
+				$('[data-experiment=' + experiment + '] .rawvalue').removeClass('visible');
+			});
+		}
+	})
+
+});
 </script>
 
 </div>

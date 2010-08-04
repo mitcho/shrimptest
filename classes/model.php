@@ -13,6 +13,9 @@ class ShrimpTest_Model {
 	var $variant_types = array();
 	var $metric_types = array();
 	
+	var $stats_timeout;
+	var $stats_transient; // a prefix for the transient name
+	
 	function ShrimpTest_Model( ) {
 		// Hint: run init( )
 	}
@@ -21,6 +24,11 @@ class ShrimpTest_Model {
 		global $wpdb;
 		$this->shrimp = &$shrimptest_instance;
 		$this->db_prefix = apply_filters( 'shrimptest_db_prefix', "{$wpdb->prefix}shrimptest_" );
+
+		// stats cache timeout: also the timeout used to setup the stats-generating WP Cron process
+		// default: 1 hour
+		$this->stats_timeout = apply_filters( 'shrimptest_stats_timeout', 60 * 60 );
+		$this->stats_transient = apply_filters( 'shrimptest_stats_transient', 'shrimptest_stats_' );
 	}
 	
 	/*
@@ -147,18 +155,30 @@ class ShrimpTest_Model {
 		global $wpdb;
 		$data = compact( 'status' );
 		$where = compact( 'experiment_id' );
-		$wpdb->update( "{$this->db_prefix}experiments", $data, $where, '%s', '%d' );
+		$wpdb->update( "{$this->db_prefix}experiments", $data, $where, '%s', '%d' );		
+		do_action( 'shrimptest_update_experiment_status', $experiment_id, $status );
 	}
 
 	function update_variants_type( $experiment_id, $variants_type ) {
 		global $wpdb;
 		$data = compact( 'variants_type' );
 		$where = compact( 'experiment_id' );
-		$wpdb->update( "{$this->db_prefix}experiments", $data, $where, '%s', '%d' );		
+		$wpdb->update( "{$this->db_prefix}experiments", $data, $where, '%s', '%d' );
+		do_action( 'shrimptest_update_variants_type', $experiment_id, $variants_type );
 	}
 		
-	function get_experiment_stats( $experiment_id ) {
+	function get_experiment_stats( $experiment_id, $force = false ) {
 		global $wpdb;
+
+		if ( !$force ) {
+			$cached_stats = get_transient( $this->stats_transient . $experiment_id );
+			if ( $cached_stats !== false ) {
+				$cached_stats['stats']['cached'] = true;
+				return $cached_stats;
+			}
+		}
+
+		timer_start();
 
 		$experiment = $this->get_experiment( $experiment_id );
 		
@@ -183,18 +203,36 @@ class ShrimpTest_Model {
 		       . " group by unique_visitor_id"
 		       . " having variant_count = 1";
 		// note: having variant_count = 1 ensures that we throw out 
-		$total_sql = "select count(unique_visitor_id) as N, avg(value) as avg, stddev(value) as sd from ({$uvsql}) as uv";
+		$total_sql = "select count(unique_visitor_id) as N, avg(value) as avg, sum(value) as sum, stddev(value) as sd from ({$uvsql}) as uv";
 
 		$stats = array();
 		$stats['total'] = $wpdb->get_row( $total_sql );
 		
 		$stats['total']->assignment_weight = $wpdb->get_var( $wpdb->prepare( "select sum(assignment_weight) from {$this->db_prefix}experiments_variants where experiment_id = %d", $experiment_id ) );
 		
-		$variant_sql = "select ev.variant_id, variant_name, assignment_weight, count(unique_visitor_id) as N, avg(value) as avg, stddev(value) as sd from {$this->db_prefix}experiments_variants as ev left join ({$uvsql}) as uv on (ev.experiment_id = uv.experiment_id and ev.variant_id = uv.variant_id) where ev.experiment_id = {$experiment_id} group by variant_id order by variant_id asc";
+		$variant_sql = "select ev.variant_id, variant_name, assignment_weight, count(unique_visitor_id) as N, avg(value) as avg, sum(value) as sum, stddev(value) as sd from {$this->db_prefix}experiments_variants as ev left join ({$uvsql}) as uv on (ev.experiment_id = uv.experiment_id and ev.variant_id = uv.variant_id) where ev.experiment_id = {$experiment_id} group by variant_id order by variant_id asc";
 		$variant_stats = $wpdb->get_results( $variant_sql );
 		foreach ( $variant_stats as $variant ) {
+			$variant->zscore = $this->zscore( $stats['total'], $variant );
+			if ( $variant->zscore !== null ) {
+				$variant->type = 'better'; // TODO: "better", "different", "worse"
+				$variant->p = $this->normal_cdf($variant->zscore,$variant->type == 'better');
+			}
 			$stats[$variant->variant_id] = $variant;
 		}
+		
+		if ( function_exists('date_default_timezone_set') )
+			date_default_timezone_set('UTC');
+		$stats['stats'] = array( 'unix' => time(),
+														 'human' => date('F j, Y, g:i:s a'),
+														 'time' => timer_stop() );
+		
+		$stats = apply_filters( 'shrimptest_experiment_stats', $stats, $experiment_id );
+		
+		$cache_timeout = $this->stats_timeout;
+		if ( isset( $experiment->data['cache_timeout'] ) )
+			$cache_timeout = $experiment->data['cache_timeout'];
+		set_transient($this->stats_transient . $experiment_id, $stats, $cache_timeout);
 		
 		return $stats;
 	}
@@ -207,7 +245,7 @@ class ShrimpTest_Model {
 	}
 	
 	// CDF = culmulative distribution function, the integral of the probability density function (PDF)
-	function normal_cdf( $z, $type = 'middle' ) {
+	function normal_cdf( $z, $type = 'different' ) {
 
 		// first, compute the single- (right-)tailed area:
 		// \int_{z}^{+\infty} Norm(x) dx
@@ -226,11 +264,11 @@ class ShrimpTest_Model {
 			$right_tail = 1 - $right_tail;
 		
 		switch ( $type ) {
-			case 'right':
+			case 'worse':
 				return $right_tail;
-			case 'left':
+			case 'better':
 				return 1 - $right_tail;
-			case 'middle':
+			case 'different':
 				return abs(1 - 2 * $right_tail);
 		}
 		
@@ -423,10 +461,10 @@ class ShrimpTest_Model {
 		return $types;
 	}
 
-	function display_metric_value( $metric_name, $value ) {
+	function display_metric_value( $metric_name, $value, $raw = null ) {
 		if ( is_numeric( $value ) && !is_int( $value ) )
 			$value = round( $value, 4 );
-		return apply_filters( 'shrimptest_display_metric_'.$metric_name.'_value', $value, $value );
+		return apply_filters( 'shrimptest_display_metric_'.$metric_name.'_value', $value, $value, $raw );
 	}
 	
 	function get_metric_types_to_edit( $current_type = null ) {
