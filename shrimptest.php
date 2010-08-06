@@ -16,6 +16,8 @@ require_once SHRIMPTEST_DIR . '/classes/core.php'; // holds the ShrimpTest class
 if ( !defined( 'SHRIMPTEST_CLASS' ) )
 	define( 'SHRIMPTEST_CLASS', 'ShrimpTest' );
 $shrimptest_class = SHRIMPTEST_CLASS;
+
+global $shrimp;
 $shrimp = new $shrimptest_class( );
 $shrimp->init();
 
