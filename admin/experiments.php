@@ -101,7 +101,7 @@ foreach( $experiments as $experiment ) {
 		$stats_stats = $stats['stats'];
 		unset( $stats['stats'] );
 		echo '<!--';
-		var_dump( $stats_stats );
+//		var_dump( $stats_stats );
 		echo '-->';
 	}
 	
