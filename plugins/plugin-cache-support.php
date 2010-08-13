@@ -141,11 +141,11 @@ function shrimptest_cache_support_get_cache_visitor_variants_string( ) {
 		}
 		// only add the string if it's non-null
 		if ( $variant_id !== null )
-			$variant_strings[] = $variant->experiment_id . ':' . $variant_id;
+			$variant_strings[] = $variant->experiment_id . '_' . $variant_id;
 	}
 
 	if ( count( $variant_strings ) )
-		return join(';', $variant_strings);
+		return join('_', $variant_strings);
 	else
 		return 'calculating experiments list';
 }
