@@ -34,6 +34,10 @@ class ShrimpTest_Variant_Shortcode {
 		add_action( 'edit_page_form', array( &$this, 'edit_helper' ) );
 		add_action( 'edit_form_advanced', array( &$this, 'edit_helper' ) );
 
+		add_action( 'init', array( &$this, 'add_buttons' ) );
+		add_action( 'edit_page_form', array( &$this, 'setup_buttons' ) );
+		add_action( 'edit_form_advanced', array( &$this, 'setup_buttons' ) );
+
 	}
 
 	function detection_filter( $content ) {
@@ -79,10 +83,6 @@ class ShrimpTest_Variant_Shortcode {
 		$experiment_id = $args['id'];
 
 		$variant_id = $this->shrimp->get_visitor_variant( $experiment_id );
-
-		if ( !$variant_id ) // control case
-			return $content;
-
 		$variant = $this->model->get_experiment_variant( $experiment_id, $variant_id );
 		return $variant->data['value'];
 		
@@ -117,31 +117,28 @@ class ShrimpTest_Variant_Shortcode {
 		// if the experiment is inactive or reserved, we can store these values.
 		if ( $status == 'inactive' || $status == 'reserved' ) {
 			
-			// if there's a control variant, and the value is different:
-			if ( isset( $variants[0] ) && ( $variants[0]->data['value'] == $content ) ) {
-				// no need to update control!
-			} else {
-				$variant_data = array( 'name' => 'Control', 'assignment_weight' => ($variants[0]->assignment_weight || 1), 'value' => $content );
-				$this->model->update_experiment_variant( (int) $experiment_id, 0, $variant_data );
-			}
-			
-			// next, look at the variants
+			// look at the variants
 			$variant_ids_in_args = array();
 			foreach( $args as $name => $variant ) {
-				$index = array_search( $name, $variant_names );
-				if ( $index !== false ) {
-					$variant_id = $variants[$index]->variant_id;
-					$variant_data = $variants[$variant_id];
-
-					if ( $variant_data->data['value'] == $variant )
-						continue; // no need to update
-
-					$variant_data = array( 'name' => $variant_data->variant_name,
-														'assignment_weight' => $variant_data->assignment_weight,
-														'value' => $variant );
-				} else {
-					$variant_id = $next_variant_id ++;
+				if ($name == 'control') { // the "control" label is special
+					$variant_id = 0;
 					$variant_data = array( 'name' => $name, 'assignment_weight' => 1, 'value' => $variant );
+				} else {
+					$index = array_search( $name, $variant_names );
+					if ( $index !== false ) {
+						$variant_id = $variants[$index]->variant_id;
+						$variant_data = $variants[$variant_id];
+	
+						if ( $variant_data->data['value'] == $variant )
+							continue; // no need to update
+	
+						$variant_data = array( 'name' => $variant_data->variant_name,
+															'assignment_weight' => $variant_data->assignment_weight,
+															'value' => $variant );
+					} else {
+						$variant_id = $next_variant_id ++;
+						$variant_data = array( 'name' => $name, 'assignment_weight' => 1, 'value' => $variant );
+					}
 				}
 
 				// keep track of the variants which were in the args
@@ -200,6 +197,14 @@ class ShrimpTest_Variant_Shortcode {
 			}
 		});
 		</script>
+		<style type="text/css">
+		#shrimptest_variant_shortcode td, #shrimptest_variant_shortcode th {
+			padding: 2px;
+		}
+		#shrimptest_variant_shortcode_addvariant {
+			float: right;
+		}
+		</style>		
 		<?php
 	}
 		
@@ -216,6 +221,75 @@ class ShrimpTest_Variant_Shortcode {
 				echo "<div class='updated'><p>" . sprintf(__("This entry includes an inactive experiment. You must <a href='%s'>edit</a> and activate the experiment."),$edit_url) . "</p></div>";
 			}
 		}
+	}
+	
+	/**
+	 * A/B button in the editor: some code based on Ratings Shorttags by
+	 * Joen Asmussen, GPL
+	 */
+	function add_buttons( ) {
+		// Don't bother doing this stuff if the current user lacks permissions
+		if ( ! current_user_can('edit_posts') && ! current_user_can('edit_pages') )
+		 return;
+
+		// load scripts
+		if ( is_admin() ) {
+			wp_enqueue_style('thickbox');
+			wp_enqueue_script('thickbox');
+			wp_register_script('shrimptest_variant_shortcode_admin_script', SHRIMPTEST_URL . 'plugins/variant-shortcode/admin.js');
+			wp_enqueue_script('shrimptest_variant_shortcode_admin_script');
+		}
+		
+		// In rich editor mode...
+		if ( get_user_option('rich_editing') == 'true') {
+			add_filter( 'mce_external_plugins', array( &$this, 'add_tinymce_plugin' ) );
+			add_filter( 'mce_buttons', array( &$this, 'register_button' ) );
+		}
+	}
+	
+	function add_tinymce_plugin( $plugins ) {
+		$plugin_array['shrimpcode_shortcode_mce'] = SHRIMPTEST_URL . 'plugins/variant-shortcode/editor_plugin.js';
+		return $plugin_array;
+	}
+	
+	function register_button( $buttons ) {
+		array_push($buttons, 'separator', 'shrimptest-variant-shortcode');
+		return $buttons;
+	}
+	
+	function setup_buttons( ){
+	?>
+		<div id="shrimptest_variant_shortcode" class="hidden">
+			<table><tbody>
+	<?php
+		// The actual fields for data entry
+
+		$variants = array(0=>'');
+		
+		foreach ( $variants as $id => $variant ) {
+			$label = __('Variant','shrimptest') . ' ' . $id;
+			if ($id == 0)
+				$label = __('Control','shrimptest');
+			echo "<tr class='shrimptest_variant_shortcode_row' data-variant='{$id}'><th>{$label}:</th><td>";
+			echo "<input type='text' maxlength='255' name='shrimptest_variant_shortcode[{$id}]' id='shrimptest_variant_shortcode_{$id}' class='shrimptest_variant_shortcode' value='" . esc_attr($variant) . "'/><input type=\"button\" class=\"shrimptest_variant_shortcode_removevariant\" value=\"-\"/>";
+			if ($id == 0)
+				echo '<input type="button" id="shrimptest_variant_shortcode_addvariant" value="+"/>';
+			echo "</td></tr>";
+		}
+	?>
+			</tbody></table>
+			<input id="shrimptest_variant_shortcode_insert" type="submit" class="button-primary" value="<?php _e("Insert experiment", "shrimptest"); ?>"></input>
+			<input id="shrimptest_variant_shortcode_cancel" type="submit" class="button" value="<?php _e("Cancel", "shrimptest"); ?>"></input>
+		</div>
+		<div class="hidden" id="shrimptest_variant_shortcode_strings">
+			<span data-id="thickbox_title"><?php _e("Add ShrimpTest Experiment", "shrimptest") ?></span>
+			<span data-id="button_title"><?php _e("Insert a new A/B test", "shrimptest") ?></span>
+			<span data-id="button_label"><?php _e("A/B", "shrimptest") ?></span>
+			<span data-id="variant"><?php _e("Variant", "shrimptest") ?></span>
+			<span data-id="variant_label_prefix"><?php _e("variant", "shrimptest") ?></span>
+			<span data-id="control_label"><?php _e("control", "shrimptest") ?></span>
+		</div>
+	<?php
 	}
 }
 

@@ -8,7 +8,8 @@ Author URI: http://mitcho.com
 License: GPLv2
 */
 
-define( 'SHRIMPTEST_DIR', dirname( __FILE__ ) );
+define( 'SHRIMPTEST_DIR', dirname( $plugin ) );
+define( 'SHRIMPTEST_URL', plugin_dir_url( $plugin ) );
 
 define( 'SHRIMPTEST_VERSION', '0.2pre' );
 

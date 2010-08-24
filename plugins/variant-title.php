@@ -190,6 +190,12 @@ jQuery(function($){
 	
 	$('#title').change(checkTitle);
 	checkTitle();
+	
+	var enforceTitleButtons = function () {
+		$('.shrimptest_title_removevariant').hide();
+		if (newVariantId > 2)
+			$('.shrimptest_title_removevariant').last().show();
+	}
 
 	var addVariant = function(){
 		$('.shrimptest_title_removevariant').hide();
@@ -210,7 +216,7 @@ jQuery(function($){
 
 		newVariantId++;
 
-		enforceButtons();
+		enforceTitleButtons();
 	};
 	if (newVariantId == 1)
 		addVariant();
@@ -221,15 +227,10 @@ jQuery(function($){
 		if ( $(this).closest('tr').attr('data-variant') == newVariantId - 1 )
 			newVariantId --;
 		$(this).closest('tr').remove();
-		enforceButtons();
+		enforceTitleButtons();
 	});
 	
-	function enforceButtons() {
-		$('.shrimptest_title_removevariant').hide();
-		if (newVariantId > 2)
-			$('.shrimptest_title_removevariant').last().show();
-	}
-	enforceButtons();
+	enforceTitleButtons();
 });
 </script>
 
