@@ -88,7 +88,8 @@ class ShrimpTest_Variant_Title {
 	function save_postdata( $post_ID ) {
 
 		// verify nonce
-		if ( !wp_verify_nonce( $_POST['shrimptest_title_nonce'], 'shrimptest_title' )) {
+		if ( isset($_POST['shrimptest_title_nonce'])
+		   && !wp_verify_nonce( $_POST['shrimptest_title_nonce'], 'shrimptest_title' )) {
 			return $post_ID;
 		}
 

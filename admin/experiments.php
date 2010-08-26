@@ -67,12 +67,16 @@ foreach( $experiments as $experiment ) {
 		$actions['edit'] = '<a href="'.$edit_url.'">' . __('Edit', 'shrimptest') . '</a>';
 		$activate_url = wp_nonce_url("admin.php?page={$this->slug}&amp;action=activate&amp;id=" . $experiment->experiment_id, 'activate-experiment_' . $experiment->experiment_id);
 		$actions['activate'] = '<a href="'.$activate_url.'">' . __('Activate', 'shrimptest') . '</a>';
-
 	}
 
 	if ( $experiment->status == 'active' ) {
 		$conclude_url = wp_nonce_url("admin.php?page={$this->slug}&amp;action=conclude&amp;id=" . $experiment->experiment_id, 'conclude-experiment_' . $experiment->experiment_id);
 		$actions['end'] = '<a class="submitdelete" href="'.$conclude_url.'">' . __('Stop', 'shrimptest') . '</a>';
+	}
+	
+	if ( $experiment->status == 'inactive' || $experiment->status == 'finished' ) {
+		$delete_url = wp_nonce_url("admin.php?page={$this->slug}&amp;action=delete&amp;id=" . $experiment->experiment_id, 'delete-experiment_' . $experiment->experiment_id);
+		$actions['delete'] = '<a class="submitdelete" href="'.$delete_url.'">' . __('Delete', 'shrimptest') . '</a>';
 	}
 	
 	$actions = apply_filters( 'shrimptest_admin_experiment_row_actions', $actions );//, $post
@@ -121,21 +125,23 @@ foreach( $experiments as $experiment ) {
 			$name = __("Control", 'shrimptest');
 		} else {
 			$name = __("Variant",'shrimptest') . " " . $stat->variant_id;
-			$p = $stat->p;
-
-			if ( $p != null ) {
-				$null_p = round( 1 - $p, 4 );
-				$null_p = "p &lt; {$null_p}";
-
-				if ( $p >= 0.95 ) {
-					// TODO: allow custom confidence intervals
-					if ( $p >= 0.99 )
-						$desc = "very confident";
-					else if ( $p >= 0.95 )
-						$desc = "confident";
-					$pmessage = sprintf( "We are <strong>%s</strong> that variant %d is %s than the control. (%s)", $desc, $stat->variant_id, $stat->type, $null_p );
-				} else {
-					$pmessage = sprintf( "We cannot confidently say whether or not variant %d is %s than the control. Perhaps there is no effect or there is not enough data. (%s)", $stat->variant_id, $stat->type, $null_p );
+			if ( isset( $stat->p ) ) {
+				$p = $stat->p;
+	
+				if ( $p != null ) {
+					$null_p = round( 1 - $p, 4 );
+					$null_p = "p &lt; {$null_p}";
+	
+					if ( $p >= 0.95 ) {
+						// TODO: allow custom confidence intervals
+						if ( $p >= 0.99 )
+							$desc = "very confident";
+						else if ( $p >= 0.95 )
+							$desc = "confident";
+						$pmessage = sprintf( "We are <strong>%s</strong> that variant %d is %s than the control. (%s)", $desc, $stat->variant_id, $stat->type, $null_p );
+					} else {
+						$pmessage = sprintf( "We cannot confidently say whether or not variant %d is %s than the control. Perhaps there is no effect or there is not enough data. (%s)", $stat->variant_id, $stat->type, $null_p );
+					}
 				}
 			}
 		}

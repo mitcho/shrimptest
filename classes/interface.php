@@ -18,6 +18,7 @@ class ShrimpTest_Interface {
 	var $message_fail = 2;
 	var $message_activated = 3;
 	var $message_concluded = 4;
+	var $message_deleted = 5;
 
 	function ShrimpTest_Interface( ) {
 		// Hint: run init( )
@@ -107,6 +108,20 @@ class ShrimpTest_Interface {
 			$this->model->update_experiment_status( $experiment, 'active' );
 			wp_redirect( admin_url("admin.php?page={$this->slug}&message=" . $this->message_activated) );
 		}
+
+		if ( isset($_GET['action']) && $_GET['action'] == 'delete' ) {
+			$experiment = $_REQUEST['id'];
+			$nonce = $_REQUEST['_wpnonce'];
+			if ( !wp_verify_nonce($nonce, 'delete-experiment_' . $experiment) )
+				wp_die( "That's nonce-ence." );
+			$status = $this->model->get_experiment_status( $experiment );
+			if ( $status != 'inactive' && $status != 'finished' )
+				wp_die( "This experiment cannot be deleted. Please conclude it first." );
+
+			$this->model->delete_experiment( $experiment );
+			wp_redirect( admin_url("admin.php?page={$this->slug}&message=" . $this->message_deleted) );
+		}
+
 
 		if ( isset($_GET['action']) && $_GET['action'] == 'conclude' ) {
 			$experiment = $_REQUEST['id'];
