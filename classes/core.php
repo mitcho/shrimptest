@@ -247,7 +247,7 @@ class ShrimpTest {
 		if ( !isset( $this->override_variants ) )
 			$this->override_variants = get_user_meta( $user_ID, "shrimptest_override_variants", true );
 
-		if ($this->override_variants[$experiment_id])
+		if ( isset( $this->override_variants[$experiment_id] ) )
 			return (int) $this->override_variants[$experiment_id];
 		else
 			return 0; // control
