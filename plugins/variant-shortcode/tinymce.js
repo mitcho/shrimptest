@@ -1,6 +1,6 @@
 (function() {	
  	tinymce.PluginManager.requireLangPack('variant_shortcode');
-	tinymce.create('tinymce.plugins.variant_shortcode', {
+	tinymce.create('tinymce.plugins.abtest', {
 		init : function(ed, url) {
 			ed.addButton('abtest', {
 				title : 'variant_shortcode.insertABTest',
@@ -25,6 +25,6 @@
 	});
 
 	// Register plugin
-	tinymce.PluginManager.add('variant_shortcode', tinymce.plugins.variant_shortcode);
+	tinymce.PluginManager.add('abtest', tinymce.plugins.abtest);
 	
 })();

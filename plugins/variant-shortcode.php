@@ -242,18 +242,21 @@ class ShrimpTest_Variant_Shortcode {
 		
 		// In rich editor mode...
 		if ( get_user_option('rich_editing') == 'true') {
-			add_filter( 'mce_external_plugins', array( &$this, 'add_tinymce_plugin' ) );
+			add_filter( 'mce_external_plugins', array( &$this, 'add_tinymce_script' ) );
 			add_filter( 'mce_buttons', array( &$this, 'register_button' ) );
+			add_filter( 'teeny_mce_buttons', array( &$this, 'register_button' ) );
 		}
 	}
 	
-	function add_tinymce_plugin( $plugins ) {
-		$plugin_array['shrimpcode_shortcode_mce'] = SHRIMPTEST_URL . 'plugins/variant-shortcode/editor_plugin.js';
+	function add_tinymce_script( $plugins ) {
+		$plugin_array['abtest'] = SHRIMPTEST_URL . 'plugins/variant-shortcode/tinymce.js';
 		return $plugin_array;
 	}
 	
 	function register_button( $buttons ) {
-		array_push($buttons, 'separator', 'shrimptest-variant-shortcode');
+		array_push($buttons, '|', 'abtest');
+		var_dump($buttons);
+//		exit;
 		return $buttons;
 	}
 	
