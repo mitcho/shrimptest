@@ -6,14 +6,12 @@ $experiment_id = (int) $_REQUEST['id'];
 // only the metric data for the metric_type that we've chosen matters.
 $metric_type = $_POST['metric_type'];
 
-$experiment_data = array( 'name' => $_POST['name'],
-													'variants_type' => $_POST['variants_type'],
-													'variants' => $_POST['variant'],
-													'metric_type' => $_POST['metric_type'],
-													'metric_name' => $_POST['metric_name']
-													);
+$experiment_data = $_POST;
+$experiment_data['variants'] = $_POST['variant'];
+unset( $experiment_data['variant'], $experiment_data['_wpnonce'], $experiment_data['_wp_http_referer'] );
 
 $metric_data = $_POST['metric'][$metric_type];
+unset( $experiment_data['metric'] );
 $metric_data['type'] = $metric_type;
 // if the checkbox is not checked, there will be no value.
 if ( $metric_type == 'manual' ) {

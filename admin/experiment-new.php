@@ -107,16 +107,36 @@ foreach ( $types as $code => $type ) {
 do_action( 'shrimptest_add_metric_extra', $experiment );
 ?>
 <tr class="metric_extra metric_extra_manual"><th><?php _e('Direction','shrimptest');?>:</th><td><?php echo sprintf(__("%s are better.",'shrimptest'), '<select name="metric[manual][direction]" id="metric_extra_manual_direction"><option value="larger">'.__('Larger values','shrimptest').'</option><option value="smaller">'.__('Smaller values','shrimptest').'</option></select>');?></td></tr>
-<tr class="metric_extra metric_extra_manual"><th>Default value:</th><td><input id="metric_extra_manual_ifnull" name="metric[manual][ifnull]" type="checkbox" checked="checked"/> <label for="metric_extra_manual_ifnull"><?php echo sprintf(__("Assume value of %s for visitors who have not triggered an explicit metric update.",'shrimptest'), '</label><input name="metric[manual][nullvalue]" id="metric_extra_manual_nullvalue" value="0" size="3" type="text"/><label for="metric_extra_manual_nullvalue">');?></label></td></tr>
+<tr class="metric_extra metric_extra_manual"><th><?php _e('Default value','shrimptest');?>:</th><td><input id="metric_extra_manual_ifnull" name="metric[manual][ifnull]" type="checkbox" checked="checked"/> <label for="metric_extra_manual_ifnull"><?php echo sprintf(__("Assume value of %s for visitors who have not triggered an explicit metric update.",'shrimptest'), '</label><input name="metric[manual][nullvalue]" id="metric_extra_manual_nullvalue" value="0" size="3" type="text"/><label for="metric_extra_manual_nullvalue">');?></label></td></tr>
+<tr class="metric_extra metric_extra_manual"><th><?php _e('Variance (optional)','shrimptest');?>:</th><td><input id="metric_extra_manual_sd" name="metric[manual][sd]" type="text" value="" size="3"/> <label for="metric_extra_manual_sd"><?php _e('standard deviations','shrimptest');?></label></td></tr>
+</table>
+<?php	
+}
+
+function shrimptest_duration_metabox( ) {
+	global $experiment_id, $experiment, $shrimp;
+	
+	$types = $shrimp->model->get_metric_types_to_edit( $experiment->metric_type );
+
+?>
+<table class='shrimptest'>
+<!--<tr><th><?php _e('ID:','shrimptest');?></th><td><code><?php echo $experiment_id; ?></code></td></tr>-->
+<tr><th><label for="detection"><?php _e('Detection level','shrimptest');?>:</th><td><input type="text" name="detection" id="detection" size="7"></input><br/>
+<small><?php _e( "The smallest detectable difference in your metric which you would like the experiment to be able to detect.", 'shrimptest' );?></small></td></tr>
+<tr><th><label for="duration"><?php _e('Experiment duration','shrimptest');?>:</th><td><input type="text" name="duration" id="duration" size="7"></input> <?php _e( 'unique visitors', 'shrimptest' ); ?><br/>
+<small><?php _e( "Confident results will not be available until this experiment duration has been reached.", 'shrimptest' );?></small></td></tr>
+<?php
+do_action( 'shrimptest_add_duration_extra', $experiment );
+?>
 </table>
 <?php	
 }
 
 
-
-add_meta_box( 'details', 'Details', 'shrimptest_details_metabox', 'shrimptest_experiment', 'advanced' );
-add_meta_box( 'variants', 'Variants', 'shrimptest_variants_metabox', 'shrimptest_experiment', 'advanced' );
-add_meta_box( 'metric', 'Metric', 'shrimptest_metric_metabox', 'shrimptest_experiment', 'advanced' );
+add_meta_box( 'details_box', 'Details', 'shrimptest_details_metabox', 'shrimptest_experiment', 'advanced' );
+add_meta_box( 'variants_box', 'Variants', 'shrimptest_variants_metabox', 'shrimptest_experiment', 'advanced' );
+add_meta_box( 'metric_box', 'Metric', 'shrimptest_metric_metabox', 'shrimptest_experiment', 'advanced' );
+add_meta_box( 'duration_box', 'Experiment duration', 'shrimptest_duration_metabox', 'shrimptest_experiment', 'advanced' );
 
 ?>
 <div id="poststuff" class="metabox-holder">
@@ -215,10 +235,28 @@ jQuery(function($){
 		$('.removevariant').last().show();
 		updateVariantsCode();
 	});
+	
+	// duration block
+	var updateDuration = function() {
+		var defaultValue = parseInt($('#duration').attr('defaultValue'));
+		var metric = $('#metric_type').val();
+		var sd = $('#metric_extra_' + metric + '_sd').val();
+		if (sd)
+			sd = parseFloat(sd);
+		var detection = $('#detection').val();
+		if (detection)
+			detection = parseFloat(detection);
+		var duration = (sd && detection) ? Math.ceil(16 * sd * sd / (detection * detection)) : null;
+		$('#duration').attr('defaultValue',duration);
+		if ((defaultValue && parseInt($('#duration').val()) == defaultValue) || $('#duration').val() == '')
+			$('#duration').val(duration);
+	};
+	$('#metric_type, #detection').change(updateDuration);
 
 	// init
 	ensureMetricConsistency();
 	ensureVariantsConsistency();
 	updateVariantsCode();
+	updateDuration();
 });
 </script>
