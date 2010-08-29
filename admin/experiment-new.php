@@ -121,9 +121,11 @@ function shrimptest_duration_metabox( ) {
 ?>
 <table class='shrimptest'>
 <!--<tr><th><?php _e('ID:','shrimptest');?></th><td><code><?php echo $experiment_id; ?></code></td></tr>-->
-<tr><th><label for="detection"><?php _e('Detection level','shrimptest');?>:</th><td><input type="text" name="detection" id="detection" size="7"></input><br/>
+<tr><th><label for="detection"><?php _e('Detection level','shrimptest');?>:</th><td><input type="text" name="detection" id="detection" size="7" value="<?php echo isset( $experiment->data['detection'] ) ? 
+	  esc_attr( $experiment->data['detection'] ) : '';?>"></input><br/>
 <small><?php _e( "The smallest detectable difference in your metric which you would like the experiment to be able to detect.", 'shrimptest' );?></small></td></tr>
-<tr><th><label for="duration"><?php _e('Experiment duration','shrimptest');?>:</th><td><input type="text" name="duration" id="duration" size="7"></input> <?php _e( 'unique visitors', 'shrimptest' ); ?><br/>
+<tr><th><label for="duration"><?php _e('Experiment duration','shrimptest');?>:</th><td><input type="text" name="duration" id="duration" size="7" value="<?php echo isset( $experiment->data['duration'] ) ? 
+	  esc_attr( $experiment->data['duration'] ) : '';?>"></input> <?php _e( 'unique visitors', 'shrimptest' ); ?><br/>
 <small><?php _e( "Confident results will not be available until this experiment duration has been reached.", 'shrimptest' );?></small></td></tr>
 <?php
 do_action( 'shrimptest_add_duration_extra', $experiment );

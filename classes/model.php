@@ -92,23 +92,45 @@ class ShrimpTest_Model {
 		$experiment = $wpdb->get_row( "select * from {$this->db_prefix}experiments where experiment_id = {$experiment_id}" );
 		if ( isset( $experiment->data ) )
 			$experiment->data = unserialize( $experiment->data );
+		$experiment->variants = $this->get_experiment_variants( $experiment_id, ARRAY_A );
 		return $experiment;
 	}
 	
 	function update_experiment( $experiment_id, $experiment_data ) {
 		global $wpdb;
 
-		// data validation
-		if ( !isset( $experiment_data['ifnull'] ) || !isset( $experiment_data['nullvalue'] )
-		                                          || !isset( $experiment_data['direction'] ) )
-			wp_die( 'Metric data must include <code>ifnull</code>, <code>nullvalue</code>, and <code>direction</code> values.' );
-			
+		$experiment_data = (array) $experiment_data;
+		if ( !isset( $experiment_data['data'] ) ) {
+			extract( $experiment_data );
+			unset( $experiment_data['metric_name'], $experiment_data['metric_type'], $experiment_data['name'], $experiment_data['variants_type'], $experiment_data['experiment_id'], $experiment_data['variants'] );
+			// everything else goes in "data"
+			$data = $experiment_data;
+
+			// all of this gets wrapped up in to experiment_data
+			$experiment_data = compact('metric_name','metric_type','name','variants_type','data','variants');
+			unset( $data );
+		}
+		$old_experiment = (array) $this->get_experiment( $experiment_id );
+		$experiment_data = array_replace_recursive( $old_experiment, $experiment_data );
+		
 		extract( $experiment_data );
-		// put everything else into a serialized string.
+
+/*		if ( isset( $experiment_data['data'] ) ) {
+			$experiment_data = $experiment_data['data'];
+			$variants = $experiment_data['variants'];
+		}*/
+
+		// data validation
+		if ( !isset( $experiment_data['data']['ifnull'] ) || !isset( $experiment_data['data']['nullvalue'] )
+		                                          || !isset( $experiment_data['data']['direction'] ) )
+			wp_die( 'Metric data must include <code>ifnull</code>, <code>nullvalue</code>, and <code>direction</code> values.' );
+
+		extract( $experiment_data );
 		unset( $experiment_data['metric_name'], $experiment_data['metric_type'], $experiment_data['name'], $experiment_data['variants_type'], $experiment_data['experiment_id'] );
+		// put everything else into a serialized string.
 		$data = '';
-		if ( !empty( $experiment_data ) )
-			$data = serialize( $experiment_data );
+		if ( !empty( $experiment_data['data'] ) )
+			$data = serialize( $experiment_data['data'] );
 
 		// update shrimptest_experimensts
 		$wpdb->query( $wpdb->prepare( "update {$this->db_prefix}experiments "
@@ -116,7 +138,7 @@ class ShrimpTest_Model {
 																	. "where experiment_id = %d",
 																	$name, $variants_type, $metric_name, $metric_type, $data, $experiment_id ) );
 
-		// update shrimptest_experiments_variants		
+		// update shrimptest_experiments_variants
 		$this->update_experiment_variants( $experiment_id, $variants );
 		
 		if ( true ) // TODO: if enough information
@@ -227,6 +249,16 @@ class ShrimpTest_Model {
 														 'human' => date('F j, Y, g:i:s a'),
 														 'time' => timer_stop() );
 		
+		if ( isset( $experiment->data['duration'] ) && $experiment->data['duration'] ) {
+			$duration_reached = ( isset( $experiment->data['duration_reached'] ) && $experiment->data['duration_reached'] );
+			if ( !$duration_reached && ( (int) $stats['total']->N ) >= ( (int) $experiment->data['duration'] ) ) {
+				// the experiment duration has been reached!
+				$experiment->data['duration_reached'] = true;
+				$this->update_experiment( $experiment->experiment_id, $experiment );
+				do_action( 'shrimptest_experiment_duration_reached', $stats, $experiment );
+			}
+		}
+
 		$stats = apply_filters( 'shrimptest_experiment_stats', $stats, $experiment );
 		
 		$cache_timeout = $this->stats_timeout;
@@ -284,20 +316,24 @@ class ShrimpTest_Model {
 	/*
 	 * get_experiment_variants: get a list of variants for the current experiment
 	 */
-	function get_experiment_variants( $experiment_id ) {
+	function get_experiment_variants( $experiment_id, $type = OBJECT ) {
 		global $wpdb;
 		$results = $wpdb->get_results( "select variant_id, variant_name, assignment_weight, data 
 																from `{$this->db_prefix}experiments_variants`
-																where `experiment_id` = {$experiment_id}" );
+																where `experiment_id` = {$experiment_id}", $type );
 		foreach ( $results as $key => $variant ) {
-			if ( isset( $results[$key]->data ) )
+			if ( $type == OBJECT && isset( $results[$key]->data ) )
 				$results[$key]->data = unserialize( $results[$key]->data );
+			if ( $type == ARRAY_A && isset( $results[$key]['data'] ) )
+				$results[$key]['data'] = unserialize( $results[$key]['data'] );
 		}
 		return $results;
 	}
 	
-	function get_experiment_variant( $experiment_id, $variant_id ) {
+	function get_experiment_variant( $experiment_id, $variant_id = 0 ) {
 		global $wpdb;
+		if ( !$variant_id ) // the default (control) is 0
+			$variant_id = 0;
 		$variant = $wpdb->get_row( "select variant_id, variant_name, assignment_weight, data 
 																from `{$this->db_prefix}experiments_variants`
 																where `experiment_id` = {$experiment_id} and `variant_id` = {$variant_id}" );
@@ -313,30 +349,37 @@ class ShrimpTest_Model {
 	
 	function update_experiment_variant( $experiment_id, $variant_id, $variant_data ) {
 		global $wpdb;
+		
+		$old_variant = (array) $this->get_experiment_variant( $experiment_id, $variant_id );
+
+		if ( isset( $variant_data['name'] ) ) {
+			$variant_data['variant_name'] = $variant_data['name'];
+			unset( $variant_data['name'] );
+		}
+		if ( !isset( $variant_data['data'] ) ) {
+			extract( $variant_data );
+			unset( $variant_data['variant_name'], $variant_data['assignment_weight'] );
+			$data = $variant_data;
+			// variant_data should be the compacting of name, assignment_weight, data
+			$variant_data = compact('variant_name', 'assignment_weight', 'data');
+			unset( $data );
+		}
+		
+		$variant_data = array_replace_recursive( $old_variant, $variant_data );
 
 		extract( $variant_data );
-		if ( !isset( $name ) || !isset( $assignment_weight ) || empty( $assignment_weight ) )
+		if ( !isset( $variant_name ) || !isset( $assignment_weight ) || empty( $assignment_weight ) )
 			wp_die( 'The variant must have a <code>name</code> and a non-zero <code>assignment_weight</code>' );
-		
-		unset( $variant_data['name'], $variant_data['assignment_weight'] );
 
-		if ( empty( $variant_data ) ) {
-			// if the data is empty, don't overwrite it!
-			$wpdb->query( $wpdb->prepare( "insert into {$this->db_prefix}experiments_variants "
-																		. "(experiment_id, variant_id, variant_name, assignment_weight) "
-																		. "values (%d, %d, %s, %d) "
-																		. "on duplicate key update variant_name = %s, assignment_weight = %d",
-																		$experiment_id, $variant_id, $name, (int) $assignment_weight,
-																		$name, (int) $assignment_weight ) );
-		} else {
-			$data = serialize( $variant_data );
-			$wpdb->query( $wpdb->prepare( "insert into {$this->db_prefix}experiments_variants "
-																		. "(experiment_id, variant_id, variant_name, assignment_weight, data) "
-																		. "values (%d, %d, %s, %d, %s) "
-																		. "on duplicate key update variant_name = %s, assignment_weight = %d, data = %s",
-																		$experiment_id, $variant_id, $name, (int) $assignment_weight, $data,
-																		$name, (int) $assignment_weight, $data ) );
-		}
+		$data = '';
+		if ( isset( $variant_data['data'] ) )
+			$data = serialize( $variant_data['data'] );
+		$wpdb->query( $wpdb->prepare( "insert into {$this->db_prefix}experiments_variants "
+																	. "(experiment_id, variant_id, variant_name, assignment_weight, data) "
+																	. "values (%d, %d, %s, %d, %s) "
+																	. "on duplicate key update variant_name = %s, assignment_weight = %d, data = %s",
+																	$experiment_id, $variant_id, $variant_name, (int) $assignment_weight, $data,
+																	$variant_name, (int) $assignment_weight, $data ) );
 	}
 	
 	function update_experiment_variants( $experiment_id, $variants ) {
@@ -455,9 +498,10 @@ class ShrimpTest_Model {
 			$types[ $variant->name ] = (object) array( 'label' => $variant->label );
 			if ( isset($variant->_programmatic) && $variant->_programmatic )
 				$types[ $variant->name ]->disabled = true;
-			if ( $current_type == $variant->name )
+			if ( $current_type == $variant->name ) {
 				$types[ $variant->name ]->selected = true;
-			else if ( $locked )
+				$types[ $variant->name ]->disabled = false; // the selected option should not be disabled.
+			} else if ( $locked )
 				$types[ $variant->name ]->disabled = true;
 		}
 		uasort( $types, array( $this, 'sort_by_defaultness' ) );		
@@ -481,9 +525,10 @@ class ShrimpTest_Model {
 			$types[ $metric->name ] = (object) array( 'label' => $metric->label );
 			if ( isset($metric->_programmatic) && $metric->_programmatic )
 				$types[ $metric->name ]->disabled = true;
-			if ( $current_type == $metric->name )
+			if ( $current_type == $metric->name ) {
 				$types[ $metric->name ]->selected = true;
-			else if ( $locked )
+				$types[ $metric->name ]->disabled = false; // the selected option should not be disabled.
+			} else if ( $locked )
 				$types[ $metric->name ]->disabled = true;
 		}
 		uasort( $types, array( $this, 'sort_by_defaultness' ) );
@@ -582,3 +627,44 @@ function register_shrimptest_metric_type( $name, $args ) {
 
 }
 
+if (!function_exists('array_replace_recursive'))
+{
+  function array_replace_recursive($array, $array1)
+  {
+    function recurse($array, $array1)
+    {
+      foreach ($array1 as $key => $value)
+      {
+        // create new key in $array, if it is empty or not an array
+        if (!isset($array[$key]) || (isset($array[$key]) && !is_array($array[$key])))
+        {
+          $array[$key] = array();
+        }
+ 
+        // overwrite the value in the base array
+        if (is_array($value))
+        {
+          $value = recurse($array[$key], $value);
+        }
+        $array[$key] = $value;
+      }
+      return $array;
+    }
+ 
+    // handle the arguments, merge one by one
+    $args = func_get_args();
+    $array = $args[0];
+    if (!is_array($array))
+    {
+      return $array;
+    }
+    for ($i = 1; $i < count($args); $i++)
+    {
+      if (is_array($args[$i]))
+      {
+        $array = recurse($array, $args[$i]);
+      }
+    }
+    return $array;
+  }
+}

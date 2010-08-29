@@ -109,7 +109,7 @@ class ShrimpTest_Variant_Shortcode {
 		$next_variant_id = 0;
 		foreach ( $variants as $id => $variant ) {
 			$variant_names[ $id ] = $variant->variant_name;
-			if ( $variant->variant_id > $greatest_variant_id )
+			if ( $variant->variant_id > $next_variant_id )
 				$next_variant_id = $variant->variant_id;
 		}
 		$next_variant_id++;

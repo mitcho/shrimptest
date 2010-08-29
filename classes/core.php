@@ -157,7 +157,7 @@ class ShrimpTest {
 			$wpdb->query( "insert into `{$this->model->db_prefix}visitors` (`cookie`,`user_agent`,`ip`) values (X'{$cookie}','{$user_agent}',inet_aton('{$ip}'))" );
 			$this->visitor_id = $wpdb->insert_id;
 			$this->visitor_cookie = $cookie;
-			return $id;
+			return $this->visitor_id;
 		} else {
 			// TODO: error handling? Cookie couldn't be set.
 			return false;
