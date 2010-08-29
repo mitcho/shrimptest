@@ -22,7 +22,7 @@ class ShrimpTest_Variant_Title {
 		add_action( 'admin_menu', array( &$this, 'add_title_metabox' ) );
 		add_action( 'edit_page_form', array( &$this, 'edit_style_and_script' ) );
 		add_action( 'edit_form_advanced', array( &$this, 'edit_style_and_script' ) );
-		add_action( 'save_post', array( &$this, 'save_postdata' ) );
+		add_action( 'save_post', array( &$this, 'save_postdata' ), 10, 2 );
 
 		add_action( 'shrimptest_add_variant_extra', array( &$this, 'admin_add_variant_extra' ) );
 		add_action( 'edit_page_form', array( &$this, 'edit_helper' ) );
@@ -85,7 +85,7 @@ class ShrimpTest_Variant_Title {
 		echo '</tbody></table>';
 	}
 	
-	function save_postdata( $post_ID ) {
+	function save_postdata( $post_ID, $post ) {
 
 		// verify nonce
 		if ( isset($_POST['shrimptest_title_nonce'])
@@ -98,7 +98,7 @@ class ShrimpTest_Variant_Title {
 			return $post_ID;
 
 		// check permissions
-		if ( 'page' == $_POST['post_type'] ) {
+		if ( 'page' == $post->post_type ) {
 			if ( !current_user_can( 'edit_page', $post_ID ) )
 				return $post_ID;
 		} else {
@@ -106,13 +106,18 @@ class ShrimpTest_Variant_Title {
 				return $post_ID;
 		}
 
-		$titles = $_POST['shrimptest_title'];
+		$titles = array();
+		if ( isset( $_POST['shrimptest_title'] ) )
+			$titles = $_POST['shrimptest_title'];
 
 		// check for a preexisting experiment_id
 		$experiment_id = get_post_meta( $post_ID, $this->experiment_id_meta_key, true );
 		
+		$target_post_ID = $post_ID;
+		if ( isset( $_POST['ID'] ) )
+			$target_post_ID = $_POST['ID'];
 		if ( !$experiment_id )
-			$experiment_id = get_post_meta( $_POST['ID'], $this->experiment_id_meta_key, true );
+			$experiment_id = get_post_meta( $target_post_ID, $this->experiment_id_meta_key, true );
 		
 		// if there is none...
 		if ( !$experiment_id ) {

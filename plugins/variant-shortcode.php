@@ -255,8 +255,6 @@ class ShrimpTest_Variant_Shortcode {
 	
 	function register_button( $buttons ) {
 		array_push($buttons, '|', 'abtest');
-		var_dump($buttons);
-//		exit;
 		return $buttons;
 	}
 	
