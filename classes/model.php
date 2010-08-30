@@ -44,7 +44,7 @@ class ShrimpTest_Model {
 		$defaults = array(
 			'status' => '',
 			'offset' => 0,
-			'orderby' => 'start_time',
+			'orderby' => 'experiment_id',
 			'order' => 'ASC',
 		);
 		$r = wp_parse_args( $args, $defaults );
@@ -633,28 +633,24 @@ function register_shrimptest_metric_type( $name, $args ) {
 
 }
 
-if (!function_exists('array_replace_recursive'))
-{
-  function array_replace_recursive($array, $array1)
-  {
-    function recurse($array, $array1)
-    {
-      foreach ($array1 as $key => $value)
-      {
-        // create new key in $array, if it is empty or not an array
-        if (!isset($array[$key]) || (isset($array[$key]) && !is_array($array[$key])))
-        {
-          $array[$key] = array();
-        }
- 
-        // overwrite the value in the base array
-        if (is_array($value))
-        {
-          $value = recurse($array[$key], $value);
-        }
-        $array[$key] = $value;
-      }
-      return $array;
+if ( !function_exists('array_replace_recursive') ) {
+  function array_replace_recursive($array, $array1) {
+		if ( !function_exists('array_replace_recursive_recurse') ) {
+			function array_replace_recursive_recurse($array, $array1) {
+				foreach ($array1 as $key => $value) {
+					// create new key in $array, if it is empty or not an array
+					if (!isset($array[$key]) || (isset($array[$key]) && !is_array($array[$key]))) {
+						$array[$key] = array();
+					}
+	 
+					// overwrite the value in the base array
+					if (is_array($value)) {
+						$value = array_replace_recursive_recurse($array[$key], $value);
+					}
+					$array[$key] = $value;
+				}
+				return $array;
+			}
     }
  
     // handle the arguments, merge one by one
@@ -668,7 +664,7 @@ if (!function_exists('array_replace_recursive'))
     {
       if (is_array($args[$i]))
       {
-        $array = recurse($array, $args[$i]);
+        $array = array_replace_recursive_recurse($array, $args[$i]);
       }
     }
     return $array;
