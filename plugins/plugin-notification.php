@@ -25,7 +25,7 @@ function shrimptest_plugin_notification( $stats, $experiment ) {
 		$subject = '[' . get_bloginfo('name') . '] ' . __('Experiment results available', 'shrimptest');
 		$name = ( isset($experiment->name) && strlen($experiment->name) ) ?
 			' (' . $experiment->name . ')' : '';
-		$message = sprintf(__('The experiment duration for experiment %d%s has been reached.', 'shrimptest'), $experiment->experiment_id, $name );
+		$message = sprintf(__('The experiment duration for experiment %d%s has been reached. Confident experiment results may be available.', 'shrimptest'), $experiment->experiment_id, $name );
 		$message .= "\n\n" . admin_url("admin.php?page={$shrimp->interface->slug}");
 //		$message .= "\n\n" . var_export( $stats, true ); // TESTING!
 		mail( $to, $subject, $message, 'From: ' . SHRIMPTEST_NOTIFICATION_FROM );
