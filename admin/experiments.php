@@ -92,18 +92,32 @@ foreach( $experiments as $experiment ) {
 	if ( isset( $end_date ) && $end_date )
 		$status .= "<br/><small>Finished: {$end_date}</small>";
 	
-	echo "</td><td>{$status}</td><td>{$experiment->metric_name}</td><td>{$total->N}</td><td>" . $this->model->display_metric_value($experiment->metric_type, $total->avg, $total->sum) . "</td><td>&nbsp;</td></tr>\n";
+	$overall_result = '';
+	$duration_not_reached = false;
+	$overall_result_na = true;
+	if ( isset( $experiment->data['duration'] ) && $experiment->data['duration'] ) {
+	  if ( !isset( $experiment->data['duration_reached'] ) ) {
+			$duration_not_reached = true;
+			$overall_result = sprintf( __('Experiment sample size (%d unique visitors) has not been met so no confident results are available.'), $experiment->data['duration'] );
+		} else {
+			$overall_result_na = false;
+			$overall_result = sprintf( __('Experiment sample size has been met.'), $experiment->data['duration'] );			
+		}
+	}
+	
+	$overall_result_na = $overall_result_na ? ' class="na"' : '';
+	echo "</td><td>{$status}</td><td>{$experiment->metric_name}</td><td>{$total->N}</td><td>" . $this->model->display_metric_value($experiment->metric_type, $total->avg, $total->sum) . "</td><td{$overall_result_na}>{$overall_result}</td></tr>\n";
 	
 	unset( $control );
 	
 	if ( isset( $stats['stats'] ) ) { // DEBUG
 		$stats_stats = $stats['stats'];
 		unset( $stats['stats'] );
-		echo '<!--';
+//		echo '<!--';
 //		var_dump( $stats_stats );
-		echo '-->';
+//		echo '-->';
 	}
-	
+		
 	foreach ( $stats as $key => $stat ) {
 		if ($total->assignment_weight)
 			$assignment_percentage = round( $stat->assignment_weight / $total->assignment_weight * 1000 ) / 10;
@@ -112,6 +126,7 @@ foreach( $experiments as $experiment ) {
 
 		$pvalue = '<span class="na">' . __( 'N/A', 'shrimptest' ) . '</span>';
 		$pmessage = '<span class="na">' . __( 'N/A', 'shrimptest' ) . '</span>';
+		$null_p = false;
 
 		$avg = $this->model->display_metric_value($experiment->metric_type, $stat->avg, $stat->sum);
 
@@ -133,15 +148,18 @@ foreach( $experiments as $experiment ) {
 							$desc = "very confident";
 						else if ( $p >= 0.95 )
 							$desc = "confident";
-						$pmessage = sprintf( "We are <strong>%s</strong> that variant %d is %s than the control. (%s)", $desc, $stat->variant_id, $stat->type, $null_p );
+						if ( !$duration_not_reached )
+							$pmessage = sprintf( "We are <strong>%s</strong> that variant %d is %s than the control. (%s)", $desc, $stat->variant_id, $stat->type, $null_p );
 					} else {
-						$pmessage = sprintf( "We cannot confidently say whether or not variant %d is %s than the control. Perhaps there is no effect or there is not enough data. (%s)", $stat->variant_id, $stat->type, $null_p );
+						if ( !$duration_not_reached )
+							$pmessage = sprintf( "We cannot confidently say whether or not variant %d is %s than the control. Perhaps there is no effect or there is not enough data. (%s)", $stat->variant_id, $stat->type, $null_p );
 					}
 				}
 			}
 		}
-
-		echo "<tr data-experiment='{$experiment->experiment_id}' class=\"variant\" data-experiment=\"{$experiment->experiment_id}\"><td><strong>{$name}:</strong> {$stat->variant_name} ($assignment_percentage%)</td><td colspan='2'></td><td>{$stat->N}</td><td>{$avg}</td><td>$pmessage</td></tr>";
+		
+		$ptitle = $null_p ? " title=\"{$null_p}\"" : '';
+		echo "<tr data-experiment='{$experiment->experiment_id}' class=\"variant\" data-experiment=\"{$experiment->experiment_id}\"><td><strong>{$name}:</strong> {$stat->variant_name} ($assignment_percentage%)</td><td colspan='2'></td><td>{$stat->N}</td><td>{$avg}</td><td{$ptitle}>$pmessage</td></tr>";
 
 	}
 	
