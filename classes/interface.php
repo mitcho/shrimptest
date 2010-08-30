@@ -14,7 +14,7 @@ class ShrimpTest_Interface {
 	var $slug;
 
 	// message ID's
-	var $message_success = 1;
+	var $message_save = 1;
 	var $message_fail = 2;
 	var $message_activated = 3;
 	var $message_concluded = 4;

@@ -29,5 +29,5 @@ $experiment_data = array_merge( $experiment_data, $metric_data );
 
 $this->model->update_experiment( $experiment_id, $experiment_data );
 
-wp_redirect( admin_url("admin.php?page={$this->slug}&message=" . $this->message_success) );
+wp_redirect( admin_url("admin.php?page={$this->slug}&message=" . $this->message_save) );
 exit;

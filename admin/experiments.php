@@ -20,6 +20,30 @@ register_column_headers($current_screen, array('id_name'=>'Experiment Name','sta
 <?php screen_icon(); ?>
 <h2><?php _e( 'ShrimpTest Experiments', 'shrimptest' ); ?> <a class="button add-new-h2" href="<?php echo admin_url("admin.php?page={$this->slug}&action=new") ?>">Add New</a></h2>
 
+<?php
+if ( isset($_GET['message']) ) {
+	switch ($_GET['message']) {
+		case $this->message_save:
+			$message = __( 'Experiment saved.', 'shrimptest' );
+			break;
+		case $this->message_fail:
+			$message = __( 'Fail!', 'shrimptest' ); // unused
+			break;
+		case $this->message_activated:
+			$message = __( 'Experiment activated.', 'shrimptest' );
+			break;
+		case $this->message_concluded:
+			$message = __( 'Experiment finished.', 'shrimptest' );
+			break;
+		case $this->message_deleted:
+			$message = __( 'Experiment deleted.', 'shrimptest' );
+			break;
+	}
+	echo "<div class=\"updated below-h2\" id=\"message\"><p>{$message}</p></div>";
+}
+
+?>
+
 <table class="widefat fixed" cellspacing="0">
 	<thead>
 	<tr>
