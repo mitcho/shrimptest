@@ -11,11 +11,6 @@ if ( isset( $_GET['action'] ) && $_GET['action'] == 'new' ) {
 	exit;
 }
 
-if ( isset( $_GET['id'] ) ) {
-	include 'experiment-detail.php';
-	exit;
-}
-
 $current_screen = $this->slug;
 register_column_headers($current_screen, array('id_name'=>'Experiment Name','status'=>'Status','metric'=>'Metric','metric_N'=>'Total Visitors','metric_avg'=>'Metric Average','$pmessage'=>'Result'));
 
