@@ -175,9 +175,15 @@ class ShrimpTest_Model {
 
 	function update_experiment_status( $experiment_id, $status ) {
 		global $wpdb;
-		$data = compact( 'status' );
+		$data = array( 'status' => $status );
+		if ( $status == 'active' )
+			$data = array( 'status' => $status, 'start_time' => date('Y-m-d H:i:s') );
+		if ( $status == 'finished' )
+			$data = array( 'status' => $status, 'end_time' => date('Y-m-d H:i:s') );
 		$where = compact( 'experiment_id' );
-		$wpdb->update( "{$this->db_prefix}experiments", $data, $where, '%s', '%d' );		
+
+		$wpdb->update( "{$this->db_prefix}experiments", $data, $where, '%s', '%d' );
+
 		do_action( 'shrimptest_update_experiment_status', $experiment_id, $status );
 	}
 

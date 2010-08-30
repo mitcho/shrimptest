@@ -46,6 +46,7 @@ foreach( $experiments as $experiment ) {
 
 	$status = $status_strings[$experiment->status];
 	$start_date = ($experiment->start_time ? date( $date_format, $experiment->start_time ) : '');
+	$end_date = ($experiment->end_time ? date( $date_format, $experiment->end_time ) : '');
 	
 	if ( $experiment->experiment_name )
 		$experiment_name = "{$experiment->experiment_name} (#{$experiment->experiment_id})";
