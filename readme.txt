@@ -4,7 +4,7 @@ Plugin Name: ShrimpTest
 Tags: shrimptest, abtesting, testing, metrics
 Requires at least: 3.0
 Tested up to: 3.0.1
-Stable tag: none
+Stable tag: 1.0b1
 
 A/B testing, the WordPress way.
 
@@ -37,7 +37,11 @@ Answer.
 == Changelog ==
 
 = 0.1 =
-* Beta 1, July 5, 2010
+* July 5, 2010 beta
+= 0.2 =
+* late July beta
+= 1.0b1 =
+* late August beta
 
 == Upgrade Notice ==
 
