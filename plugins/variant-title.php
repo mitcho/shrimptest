@@ -382,7 +382,10 @@ jQuery(function($){
 	 * @uses ShrimpTest_Model::get_experiment_variant()
 	 * @return string
 	 */
-	function swap_title( $title, $id ) {
+	function swap_title( $title, $id = null ) {
+		if ( $id == null )
+			return $title;
+		
 		$experiment_id = get_post_meta( $id, $this->experiment_id_meta_key, true );
 		if ( !$experiment_id )
 			return $title;
