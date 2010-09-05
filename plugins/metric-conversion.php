@@ -1,24 +1,69 @@
 <?php
-
-/*
- * class ShrimpTest_Metric_Conversion
+/**
+ * ShrimpTest Conversion metric type
+ *
+ * Implements the ShrimpTest Conversion metric type.
+ *
+ * @author mitcho (Michael Yoshitaka Erlewine) <mitcho@mitcho.com>, Automattic
+ * @package ShrimpTest
+ * @subpackage ShrimpTest_Metric_Conversion
  */
 
+/**
+ * ShrimpTest Conversion metric type class
+ *
+ * An object-oriented metric type specification. This class name is handed to
+ * {@link register_shrimptest_metric_type()} at the end of this file so it is registered.
+ *
+ * Many of the properties in the resulting object are there as
+ * {@link register_shrimptest_metric_type()} expects them.
+ *
+ * @link http://shrimptest.com/docs/variant-and-metric-api/
+ */
 class ShrimpTest_Metric_Conversion {
 	
+	/**
+	 * The internal metric designation
+	 * @var string
+	 */
 	var $name = 'conversion';
+
+	/**
+	 * A user-facing metric type string
+	 * @var string
+	 */
 	var $label = 'Conversion';
-	// this setting means that we will try to offer this metric as the default for new experiments:
+	/**
+	 * This setting means that we will try to offer this metric as the default for new experiments:
+	 * @var bool
+	 */
 	var $_default = true;
-	
-	// variables used for the query_vars-retreiving code to get a more stable representation for
-	// detecting conversion hits.
+
+	/**#@+
+	 * variables used for the query_vars-retreiving code to get a more stable representation for
+	 * detecting conversion hits.
+	 * @var string
+	 */
 	var $query_vars_header = 'X-ShrimpTest-Query-Vars';
 	var $query_vars_parameter = 'shrimptest_query_vars';
+	/**#@-*/
 
+	/**
+	 * A prefix used for constructing a transient id
+	 * @var string
+	 */
 	var $prefix = 'shrimptest_metric_conversion_';
-		
+
+	/**
+	 * Constructor
+	 *
+	 * Set up actions and filters. Gets called in {@link register_shrimptest_metric_type()}.
+	 *
+	 * @param ShrimpTest
+	 */		
 	function ShrimpTest_Metric_Conversion( $shrimptest_instance ) {
+
+		$this->label = __('Conversion','shrimptest');
 
 		$this->shrimp =& $shrimptest_instance;
 		$this->model =& $shrimptest_instance->model;
@@ -40,6 +85,12 @@ class ShrimpTest_Metric_Conversion {
 
 	}
 
+	/**
+	 * Print the "metric extra" rows in the "Add new experiment" screen
+	 *
+	 * @param object
+	 * @link http://shrimptest.com/docs/variant-and-metric-api/
+	 */
 	function admin_add_metric_extra( $experiment ) {
 		if ( isset( $experiment->data['conversion_url'] ) ) {
 			$class = '';
@@ -56,6 +107,9 @@ class ShrimpTest_Metric_Conversion {
 		// The maximum standard deviation possible with a bernoulli trial (0.5) is hidden
 	}
 	
+	/**
+	 * Add styling and JavaScript for the "Add new experiment" screen
+	 */
 	function admin_script_and_style( ) {
 		?>
 		<script type="text/javascript">
@@ -75,6 +129,14 @@ class ShrimpTest_Metric_Conversion {
 		<?php
 	}
 	
+	/**
+	 * Prepare the given conversion metric specification for saving.
+	 *
+	 * @link http://shrimptest.com/docs/variant-and-metric-api/
+	 * @uses retrieve_query_vars()
+	 * @param array
+	 * @return array
+	 */
 	function admin_save_filter( $metric_data ) {
 	
 		// first things first, ensure that the $metric_data includes the appropriate parameters for a 
@@ -107,9 +169,17 @@ class ShrimpTest_Metric_Conversion {
 	
 		// else, we have to kick it back to the user saying we couldn't resolve that URL.
 		wp_die( __( 'The specified conversion URL is not part of your WordPress site. Please go back and enter another.', 'shrimptest' ) );
-	
 	}
 	
+	/**
+	 * Check whether we have hit upon any conversion metrics' goal URL's.
+	 *
+	 * If we have, then record that conversion using {@link shrimptest_conversion_success}.
+	 *
+	 * @uses shrimptest_conversion_success()
+	 * @uses get_conversion_rules()
+	 * @param array
+	 */
 	function check_conversion( $parsed_query ) {
 		$rules = $this->get_conversion_rules( );
 		foreach ( $rules as $metric_id => $query_vars ) {
@@ -118,7 +188,14 @@ class ShrimpTest_Metric_Conversion {
 			}
 		}
 	}
-	
+
+	/**
+	 * Get the "conversion rules": the collection of query vars that we are looking
+	 * out for, as they represent conversion metric conversions.
+	 *
+	 * @uses ShrimpTest_Model::get_experiments()
+	 * @return array
+	 */	
 	function get_conversion_rules( ) {
 		if ( !isset($this->shrimp) )
 			wp_die( '<code>shrimptest_init</code> has not occured yet.' );
@@ -134,6 +211,14 @@ class ShrimpTest_Metric_Conversion {
 		return $rules;
 	}
 	
+	/**
+	 * Add special headers representing the WP query_vars if a HEAD request was made
+	 * with the {@link $query_vars_parameter} parameter.
+	 *
+	 * @param array
+	 * @param array
+	 * @return array
+	 */	
 	function print_query_headers( $headers, $this_query ) {
 		if ( isset( $_GET[ $this->query_vars_parameter ] ) ) {
 			$headers[ $this->query_vars_header ] = serialize( $this_query->query_vars );
@@ -141,11 +226,15 @@ class ShrimpTest_Metric_Conversion {
 		return $headers;
 	}
 	
-	/*
-	 * retrieve_query_vars
+	/**
+	 * Use this function to get serialized query vars for any WordPress 
+	 *
+	 * Example:
+	 * <code>retrieve_query_vars( 'http://shrimptest.local/2010/06/' )</code>
+	 *
+	 * @param string
+	 * @return array
 	 */
-	// Use this function to get serialized query vars for any WordPress 
-	// e.g. retrieve_query_vars( 'http://shrimptest.local/2010/06/' )
 	function retrieve_query_vars( $url ) {
 		if ( strpos( $url, '?' ) !== false )
 			$url .= "&{$this->query_vars_parameter}=1";
@@ -158,6 +247,16 @@ class ShrimpTest_Metric_Conversion {
 			return unserialize( $headers[ strtolower( $this->query_vars_header ) ] );
 	}
 	
+	/**
+	 * Displays a display-friendly value for the given {@link $value}: in this case,
+	 * a percentage representation.
+	 *
+	 * @link http://shrimptest.com/docs/variant-and-metric-api/
+	 * @param mixed
+	 * @param float
+	 * @param float
+	 * @return string
+	 */
 	function display_value( $value, $original_value, $raw ) {
 		return round( $original_value * 100, 2 ) . '% <span class="rawvalue" alt="raw total">' . $raw . '</span>';
 	}

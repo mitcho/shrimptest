@@ -1,58 +1,100 @@
 <?php
+/**
+ * ShrimpTest Interface class file
+ *
+ * @author mitcho (Michael Yoshitaka Erlewine) <mitcho@mitcho.com>, Automattic
+ * @package ShrimpTest
+ */
 
-/*
- * class ShrimpTest_Interface
+/**
+ * ShrimpTest Interface class
+ *
  * Implements the default ShrimpTest UI
+ *
+ * @package ShrimpTest
  */
 class ShrimpTest_Interface {
 
-	// references to the other global objects
+	/**
+	 * Reference to the local {@link ShrimpTest} Core instance
+	 * @var ShrimpTest
+	 */
 	var $shrimp; // Core
+	/**
+	 * Reference to the local {@link ShrimpTest_Model} instance
+	 * @var ShrimpTest_Model
+	 */
 	var $model;  // Model
 
-	// the interface slug used 	
+	/**
+	 * The interface slug
+	 *
+	 * This is the prefix on all ShrimpTest page names in wp-admin
+	 *
+	 * @var string
+	 */
 	var $slug;
 
-	// message ID's
+	/**#@+
+	 * message ID's
+	 * @var int
+	 */
 	var $message_save = 1;
 	var $message_fail = 2;
 	var $message_activated = 3;
 	var $message_concluded = 4;
 	var $message_deleted = 5;
+	/**#@-*/
 
+	/**
+	 * Dummy constructor.
+	 *
+	 * Hint: run {@link init()}
+	 */
 	function ShrimpTest_Interface( ) {
-		// Hint: run init( )
 	}
 
+	/**
+	 * Initialization
+	 *
+	 * Sets {@link $slug} to be, by default, 'shrimptest' and
+	 * registers some actions.
+	 *
+	 * @param ShrimpTest
+	 * @todo include the delimiter _ in the slug:
+	 * @filter shrimptest_interface_slug
+	 */
 	function init( &$shrimptest_instance ) {
 		$this->shrimp = &$shrimptest_instance;
 		
-		// TODO: include the delimiter _ in the slug:
 		$this->slug = apply_filters( 'shrimptest_interface_slug', 'shrimptest' );
 		
 		add_action( 'admin_menu', array( &$this, 'admin_menu' ) );
 
 		add_action( 'wp_footer', array( &$this, 'do_adminbar' ) );
 		add_filter( 'wpabar_menuitems', array( &$this, 'filter_adminbar' ) );
-				
 	}
 	
+	/**
+	 * Register the ShrimpTest admin pages
+	 */
 	function admin_menu( ) {
-		// $icon = plugins_url( null, __FILE__ ) . '/shrimp.png';
-		// TODO: fix this:
-		$icon = WP_PLUGIN_URL . '/shrimptest/shrimp.png';
+		$icon = SHRIMPTEST_URL . '/shrimp.png';
 		$experiments = add_menu_page( 'ShrimpTest Experiments', 'ShrimpTest', 'manage_options', $this->slug, array( &$this, 'admin_experiments' ), $icon );
 		$settings = add_submenu_page( $this->slug, 'ShrimpTest Settings', 'Settings', 'manage_options', "{$this->slug}_settings", array( &$this, 'admin_settings' ) );
 		
 		add_action( 'admin_init', array( &$this, 'admin_new_experiment_redirect' ) );
 		add_action( 'admin_head-'. $settings, array( &$this, 'admin_header' ) );
 		add_action( 'admin_head-'. $experiments, array( &$this, 'admin_header' ) );
-		
 	}
 	
+	/**
+	 * Print some styles and JavaScript for all ShrimpTest admin pages
+	 *
+	 * @action shrimptest_admin_header
+	 */
 	function admin_header( ) {
-		// TODO: fix URL path
-		$icon = WP_PLUGIN_URL . '/shrimptest/shrimp-large.png';
+		$icon = SHRIMPTEST_URL . '/shrimp-large.png';
 		echo "<style type=\"text/css\">
 		#icon-shrimptest {background: url($icon) no-repeat center center}
 		tr.variant td {padding-left: 15px;}
@@ -91,6 +133,17 @@ class ShrimpTest_Interface {
 		do_action( 'shrimptest_admin_header' );
 	}
 	
+	/**
+	 * Redirect the user to, or include the PHP for, the appropriate ShrimpTest
+	 * "experiment" page, depending on whether we're viewing multiple experiments,
+	 * saving an experiment, creating a new experiment, etc.
+	 *
+	 * @uses $slug
+	 * @uses ShrimpTest_Model::get_experiment_status()
+	 * @uses ShrimpTest_Model::update_experiment_status()
+	 * @uses ShrimpTest_Model::delete_experiment()
+	 * @uses ShrimpTest_Model::get_reserved_experiment_id()
+	 */
 	function admin_new_experiment_redirect( ) {
 
 		if ( !isset( $_GET['page'] ) || $_GET['page'] != "{$this->slug}" )
@@ -152,26 +205,48 @@ class ShrimpTest_Interface {
 		}
 	}
 	
+	/**
+	 * Include the settings page
+	 */
 	function admin_settings( ) {
 		include SHRIMPTEST_DIR . '/admin/settings.php';
 	}
 
+	/**
+	 * Include the experiments display page
+	 */
 	function admin_experiments( ) {
 		include SHRIMPTEST_DIR . '/admin/experiments.php';
 	}
 
+	/**
+	 * Handler for adding the variant preview feature.
+	 *
+	 * Checks to see if the WP Admin Bar plugin is installed. If not, we run
+	 * {@link print_shrimptest_widget()}.
+	 *
+	 * @link http://www.viper007bond.com/wordpress-plugins/wordpress-admin-bar/
+	 * @global wpdb
+	 * @global WPAdminBar
+	 * @uses ShrimpTest::has_been_touched()
+	 * @uses print_shrimptest_widget()
+	 */
 	function do_adminbar( ) {
 		global $wpdb, $WPAdminBar;
 		if ( is_user_logged_in( ) && $this->shrimp->has_been_touched( ) ) {
 			if ( empty( $WPAdminBar ) )
 				$this->print_shrimptest_widget( );
 		}
-
 	}
 	
+	/**
+	 * Adds the ShrimpTest variant preview widget
+	 *
+	 * @uses get_menus()
+	 */
 	function print_shrimptest_widget( ) {
 
-		$icon = WP_PLUGIN_URL . '/shrimptest/shrimp.png';
+		$icon = SHRIMPTEST_URL . '/shrimp.png';
 		$menus = $this->get_menus( );
 ?>
 <style type="text/css">
@@ -244,7 +319,7 @@ text-shadow: -1px -1px 2px rgba(0,0,0,0.2);
 </style>
 <div id="shrimptest-menu">
 <ul>
-<li class="brand"><a href="<?php echo admin_url('admin.php?page=shrimptest');?>">ShrimpTest</a></li><?php
+<li class="brand"><a href="<?php echo admin_url('admin.php?page=' . $this->slug);?>"><?php _e('ShrimpTest','shrimptest');?></a></li><?php
 	foreach ( $menus as $key => $menu ) {
 
 		echo "<li>";
@@ -273,34 +348,53 @@ text-shadow: -1px -1px 2px rgba(0,0,0,0.2);
 </div>
 <?php
 	}
-		
+	
+	/**
+	 * Get the "menu items" array for use by WP Admin Bar.
+	 *
+	 * If WP Admin Bar is not loaded, {@link print_shrimptest_widget()} can also use
+	 * this output, though.
+	 *
+	 * @todo display metric name in the metric menu
+	 * @uses ShrimpTest::get_touched_experiments()
+	 * @uses ShrimpTest_Model::get_experiment()
+	 * @uses ShrimpTest_Model::get_experiment_variants()
+	 * @uses ShrimpTest::get_touched_metrics()
+	 * @return array
+	 */
 	function get_menus( ) {
 		$menus = array();
 		$touched_experiments = $this->shrimp->get_touched_experiments( );
 		if ( !empty( $touched_experiments ) ) {
-			$experiments = array( array( 'id'=>'20', 'title'=>'<sup>A</sup>/<sub>B</sub>', 'custom'=>false ) );
+			$experiments = array( array( 'id'=>'20', 'title'=>__('<sup>A</sup>/<sub>B</sub>','shrimptest'), 'custom'=>false ) );
 
 			foreach( $touched_experiments as $experiment_id => $data ) {
 				$experiment = $this->model->get_experiment( $experiment_id );
-				$experiments["admin.php?page={$this->slug}&id={$experiment_id}"] = array( 'id'=>$experiment_id, 'title'=>"Experiment {$experiment_id}: {$experiment->name} <small>(status: {$experiment->status})</small>", 'custom'=>false );
+				$experiments["admin.php?page={$this->slug}&id={$experiment_id}"] = array(
+					'id'=>$experiment_id,
+					'title'=>__('Experiment','shrimptest') . " {$experiment_id}: {$experiment->name} <small>(" . __('status','shrimptest') . ": {$experiment->status})</small>",
+					'custom'=>false );
 				
 				// display each of the variants
 				foreach ( $this->model->get_experiment_variants( $experiment_id ) as $variant ) {
 					if ( $variant->variant_id == 0 )
-						$title = "Control";
+						$title = __('Control','shrimptest');
 					else
-						$title = "Variant {$variant->variant_id}";
+						$title = __('Variant','shrimptest') . " {$variant->variant_id}";
 
 					// add variant name
 					if ( !empty( $variant->variant_name ) )
 						$title .= ": {$variant->variant_name}";
 
 					if ( $data['variant'] == $variant->variant_id )
-						$title = "&#x2714; {$title}"; // checkmark
+						$title = __('&#x2714;','shrimptest') . " {$title}"; // checkmark
 					else
-						$title = "&#x3000; {$title}"; // full-width space
+						$title = __('&#x3000;','shrimptest') . " {$title}"; // full-width space
 						
-					$experiments["admin-ajax.php?action=shrimptest_override_variant&experiment_id={$experiment_id}&variant_id={$variant->variant_id}"] = array( 'id'=>$variant->variant_id, 'title'=>$title, 'custom'=>false );					
+					$experiments["admin-ajax.php?action={$this->slug}_override_variant&experiment_id={$experiment_id}&variant_id={$variant->variant_id}"] = array(
+						'id'=>$variant->variant_id,
+						'title'=>$title,
+						'custom'=>false );					
 				}
 			}
 			$menus[] = $experiments;
@@ -308,15 +402,18 @@ text-shadow: -1px -1px 2px rgba(0,0,0,0.2);
 
 		$touched_metrics = $this->shrimp->get_touched_metrics( );
 		if ( !empty( $touched_metrics ) ) {
-			$metrics = array( array( 'id'=>'21', 'title'=>'&#x2605;', 'custom'=>false ) );
+			$metrics = array( array( 'id'=>'21',
+			                         'title'=>__('&#x2605;','shrimptest'),
+			                         'custom'=>false ) );
 
 			foreach( $touched_metrics as $metric_id => $data ) {
-				// TODO: display metric name
 				if ( isset( $data->value ) )
-					$value = " <small>(value: $data->value)</small>";
+					$value = " <small>(" . __('value','shrimptest') . ": $data->value)</small>";
 				else
 					$value = "";
-				$metrics[] = array( 'id' => $metric_id, 'title'=>"Metric {$metric_id}{$value}", 'custom'=>false );
+				$metrics[] = array( 'id' => $metric_id,
+				                    'title'=>__('Metric','shrimptest') . " {$metric_id}{$value}",
+				                    'custom'=>false );
 			}
 			$menus[] = $metrics;
 		}
@@ -324,6 +421,12 @@ text-shadow: -1px -1px 2px rgba(0,0,0,0.2);
 		return $menus;
 	}
 	
+	/**
+	 * If WP Admin Bar is installed, filter the Admin Bar info, splicing our
+	 * menu items in for the variant preview feature.
+	 *
+	 * @uses get_menus()
+	 */
 	function filter_adminbar( $menus ) {
 
 		// we want to be on the left side of the menu, so find the magical point where we're on the

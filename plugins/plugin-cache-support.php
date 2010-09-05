@@ -1,11 +1,29 @@
 <?php
-/*
- * Cache support plugin
- * This plugin implements various functionality to support the caching of ShrimpTest-generated
- * content.
+/**
+ * ShrimpTest caching support plugin
+ *
+ * This ShrimpTest plugin supports caching of pages with ShrimpTest experiments
+ * in a smart way. The {@link shrimptest-cache-plugin.php} file must be installed
+ * with W3 Total Cache or WP Super Cache in order to get caching to work.
+ *
+ * @author mitcho (Michael Yoshitaka Erlewine) <mitcho@mitcho.com>, Automattic
+ * @package ShrimpTest
+ * @subpackage ShrimpTest_Plugin_Cache
  */
 
 add_filter('shrimptest_dbdelta_sql', 'shrimptest_cache_support_add_sql');
+
+/**
+ * Add the SQL create table statement so that {@link ShrimpTest::ensure_db()}
+ * can create a request_touches table which keeps track of which
+ * experiments are touched by what requests.
+ *
+ * This is registered against the shrimptest_dbdelta_sql filter.
+ *
+ * @global ShrimpTest
+ * @param array
+ * @return array
+ */
 function shrimptest_cache_support_add_sql( $sql ) {
 	global $shrimp;
 	array_push($sql, "CREATE TABLE {$shrimp->model->db_prefix}request_touches (
@@ -19,6 +37,19 @@ function shrimptest_cache_support_add_sql( $sql ) {
 }
 
 add_action( 'wp_footer', 'shrimptest_cache_support_record_touched' );
+/**
+ * Record the "touched" experiments for the current request
+ *
+ * @global wpdb
+ * @global bool
+ * @global ShrimpTest
+ * @param bool
+ * @uses ShrimpTest::blocked_visit()
+ * @filter shrimptest_record_touched_is_404
+ * @uses shrimptest_cache_support_request_uri()
+ * @uses ShrimpTest::get_touched_experiments()
+ * @uses ShrimpTest::get_touched_metrics()
+ */
 function shrimptest_cache_support_record_touched( $force = false ) {
 	global $wpdb, $wp_super_cache_debug, $shrimp;
 	
@@ -96,11 +127,40 @@ function shrimptest_cache_support_record_touched( $force = false ) {
 	}
 }
 
+/**
+ * Compute a URL for the current request, to be used as the key for recording
+ * the "touched" experiments and metrics.
+ *
+ * @return string
+ * @filter shrimptest_cache_support_request_uri
+ */
 function shrimptest_cache_support_request_uri( ) {
 	$uri = $_SERVER['SERVER_NAME'] . $_SERVER['SERVER_PORT'] . $_SERVER['REQUEST_URI'];
 	return apply_filters( 'shrimptest_cache_support_request_uri', $uri );
 }
 
+/**
+ * Compute a string which represents a visitor's participation in experiments and
+ * the associated variant ids
+ *
+ * This string is affixed to caching keys to create a string which is unique
+ * to the "experiment environment" of the visitor. That way, if multiple requests
+ * are made with the same visitor variant string, it can be cached.
+ *
+ * Returns 'no experiments on this page' if, well, that's the case.
+ *
+ * Returns 'calculating experiments list' if there's no cached data on
+ * what experiments may be touched by this request and this data must be
+ * built up.
+ *
+ * @global wpdb
+ * @global bool
+ * @global ShrimpTest
+ * @uses ShrimpTest::$visitor_id
+ * @uses shrimptest_cache_support_request_uri()
+ * @uses ShrimpTest::get_visitor_variant()
+ * @return string
+ */
 function shrimptest_cache_support_get_cache_visitor_variants_string( ) {
 	global $wpdb, $wp_super_cache_debug, $shrimp;
 

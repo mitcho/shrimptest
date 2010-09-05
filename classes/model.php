@@ -1,49 +1,120 @@
 <?php
+/**
+ * ShrimpTest Model class file
+ *
+ * @author mitcho (Michael Yoshitaka Erlewine) <mitcho@mitcho.com>, Automattic
+ * @package ShrimpTest
+ */
 
-/*
- * class ShrimpTest_Model
- * Implements the default ShrimpTest "Model"
- * "Model" is model in the MVC sense, so it essentially is used to access the experiment store.
+/**
+ * ShrimpTest Model class
+ *
+ * Implements the default ShrimpTest "Model". "Model" is model in the MVC sense, so it essentially is used to access the experiment store.
+ *
+ * @package ShrimpTest
  */
 class ShrimpTest_Model {
 
+	/**
+	 * Reference to the global {@link ShrimpTest} instance
+	 * @var ShrimpTest
+	 */
 	var $shrimp;
+	
+	/**
+	 * Prefix for all ShrimpTest database tables.
+	 *
+	 * Includes $wpdb->prefix
+	 *
+	 * @var string
+	 */
 	var $db_prefix;
 
+	/**
+	 * Array of registered variant types and their arguments
+	 * @var array
+	 */
 	var $variant_types = array();
+	/**
+	 * Array of registered metric types and their arguments
+	 * @var array
+	 */
 	var $metric_types = array();
 	
+	/**
+	 * Timeout value, in seconds, for experiment stats cache.
+	 *
+	 * By default, 60 minutes (3600). Updatable via the shrimptest_stats_timeout filter.
+	 * Also the timeout used to setup the stats-generating WP Cron process.
+	 *
+	 * @var int
+	 */
 	var $stats_timeout;
-	var $stats_transient; // a prefix for the transient name
+	/**
+	 * A prefix for the experiment stats transient name
+	 *
+	 * By default, 'shrimptest_stats_'. Updatable via the shrimptest_stats_transient filter.
+	 *
+	 * @var string
+	 */
+	var $stats_transient;
 	
+	/**
+	 * Dummy constructor
+	 *
+	 * Hint: run {@link init()}
+	 */
 	function ShrimpTest_Model( ) {
-		// Hint: run init( )
 	}
 
+	/**
+	 * Initialization
+	 *
+	 * @param ShrimpTest
+	 * @global wpdb
+	 * @uses 
+	 * @filter shrimptest_db_prefix
+	 * @filter shrimptest_stats_timeout
+	 * @filter shrimptest_stats_transient
+	 */
 	function init( &$shrimptest_instance ) {
 		global $wpdb;
 		$this->shrimp = &$shrimptest_instance;
 		$this->db_prefix = apply_filters( 'shrimptest_db_prefix', "{$wpdb->prefix}shrimptest_" );
-
-		// stats cache timeout: also the timeout used to setup the stats-generating WP Cron process
-		// default: 1 hour
 		$this->stats_timeout = apply_filters( 'shrimptest_stats_timeout', 60 * 60 );
 		$this->stats_transient = apply_filters( 'shrimptest_stats_transient', 'shrimptest_stats_' );
 	}
 	
-	/*
-	 * AGGREGATE EXPERIMENT FUNCTIONS
+	/**#@+
+	 * AGGREGATE EXPERIMENT FUNCTIONS<br/>
 	 */
-	
+	/**
+	 * Get an array of active experiments
+	 *
+	 * @uses get_experiments()
+	 * @return array
+	 */
 	function get_active_experiments( ) {
 		return $this->get_experiments( array('status'=>'active') );
 	}
 	
+	/**
+	 * Get an array of experiments, using the parameters provided.
+	 *
+	 * Possible parameters: <ul>
+	 * <li>status, default ''</li>
+	 * <li>orderby, default 'experiment_id'</li>
+	 * <li>order, default 'ASC'</li>
+	 * </ul>
+	 *
+	 * @param array
+	 * @global wpdb
+	 * @return array
+	 */
 	function get_experiments( $args = array( ) ) {
 		global $wpdb;
 		$defaults = array(
 			'status' => '',
-			'offset' => 0,
 			'orderby' => 'experiment_id',
 			'order' => 'ASC',
 		);
@@ -76,17 +147,40 @@ class ShrimpTest_Model {
 
 		return $experiments;
 	}
-
-	/*
-	 * INDIVIDUAL EXPERIMENT FUNCTIONS
+	/**#@-*/
+	
+	/**#@+
+	 * INDIVIDUAL EXPERIMENT FUNCTIONS<br/>
+	 *
 	 */
-
+	/**
+	 * Get a reserved experiment id
+	 *
+	 * This is used to create a new "reserved" experiment and return that experiment
+	 * id. This can then be used to take the user to the "add new experiment" screen.
+	 *
+	 * @global wpdb
+	 * @return int
+	 */
 	function get_reserved_experiment_id( ) {
 		global $wpdb;
 		$wpdb->query( "insert into `{$this->db_prefix}experiments` (`status`) values ('reserved')" );
 		return $wpdb->insert_id;
 	}
 
+	/**
+	 * Get an experiment's specification
+	 *
+	 * Returns all the data from the experiments table, with the "data" column, if
+	 * available, unserialized into an array. All associated variants from the
+	 * experiments_variants table will also be put in the "variants" entry as
+	 * an array.
+	 *
+	 * @global wpdb
+	 * @param int
+	 * @uses get_experiment_variants()
+	 * @return array
+	 */
 	function get_experiment( $experiment_id ) {
 		global $wpdb;
 		$experiment = $wpdb->get_row( "select * from {$this->db_prefix}experiments where experiment_id = {$experiment_id}" );
@@ -96,6 +190,27 @@ class ShrimpTest_Model {
 		return $experiment;
 	}
 	
+	/**
+	 * Update an experiment's specification
+	 *
+	 * Update the experiments table's entry for the given experiment id,
+	 * putting some pre-specified parameters into columns, and everything else
+	 * gets serialized into the "data" column. Information on variants and a new
+	 * status string can also be specified in the experiment data, but will
+	 * simply be passed on to {@link update_experiment_variants()} and
+	 * {@link update_experiment_status()}
+	 *
+	 * The given experiment data is first merged with the current experiment
+	 * data so that no data is lost, using {@link array_replace_recursive()}.
+	 *
+	 * @global wpdb
+	 * @param int
+	 * @use get_experiment()
+	 * @uses update_experiment_variants()
+	 * @uses update_experiment_status()
+	 * @todo make sure we have enough information before making the status "inactive"
+	 * @param array|object
+	 */
 	function update_experiment( $experiment_id, $experiment_data ) {
 		global $wpdb;
 
@@ -115,14 +230,10 @@ class ShrimpTest_Model {
 		
 		extract( $experiment_data );
 
-/*		if ( isset( $experiment_data['data'] ) ) {
-			$experiment_data = $experiment_data['data'];
-			$variants = $experiment_data['variants'];
-		}*/
-
 		// data validation
-		if ( !isset( $experiment_data['data']['ifnull'] ) || !isset( $experiment_data['data']['nullvalue'] )
-		                                          || !isset( $experiment_data['data']['direction'] ) )
+		if ( !isset( $experiment_data['data']['ifnull'] )
+		    || !isset( $experiment_data['data']['nullvalue'] )
+		    || !isset( $experiment_data['data']['direction'] ) )
 			wp_die( 'Metric data must include <code>ifnull</code>, <code>nullvalue</code>, and <code>direction</code> values.' );
 
 		extract( $experiment_data );
@@ -141,10 +252,20 @@ class ShrimpTest_Model {
 		// update shrimptest_experiments_variants
 		$this->update_experiment_variants( $experiment_id, $variants );
 		
-		if ( true ) // TODO: if enough information
-			$this->update_experiment_status( $experiment_id, 'inactive' );
+		$this->update_experiment_status( $experiment_id, 'inactive' );
 	}
 	
+	/**
+	 * Delete the specified experiment, if the status will allow.
+	 *
+	 * Will delete data not only from the experiments data, but will also delete
+	 * associated data from other tables.
+	 *
+	 * @param int
+	 * @param bool
+	 * @global wpdb
+	 * @return int the number of rows that were deleted
+	 */
 	function delete_experiment( $experiment_id, $force = false ) {
 		global $wpdb;
 		
@@ -168,11 +289,29 @@ class ShrimpTest_Model {
 		return $deleted;
 	}
 	
+	/**
+	 * Get the status string for the specified experiment.
+	 *
+	 * @param int
+	 * @global wpdb
+	 * @return string
+	 */
 	function get_experiment_status( $experiment_id ) {
 		global $wpdb;
 		return $wpdb->get_var( "select status from {$this->db_prefix}experiments where experiment_id = {$experiment_id}" );
 	}
 
+	/**
+	 * Update the specified experiment's status code.
+	 *
+	 * Will set the start_time when setting to "active", and the end_time when
+	 * setting to "finished".
+	 *
+	 * @global wpdb
+	 * @param int
+	 * @param string
+	 * @action shrimptest_update_experiment_status
+	 */
 	function update_experiment_status( $experiment_id, $status ) {
 		global $wpdb;
 		$data = array( 'status' => $status );
@@ -187,6 +326,14 @@ class ShrimpTest_Model {
 		do_action( 'shrimptest_update_experiment_status', $experiment_id, $status );
 	}
 
+	/**
+	 * Update the variant type of the specified experiment
+	 *
+	 * @global wpdb
+	 * @param int
+	 * @param string
+	 * @action shrimptest_update_variants_type
+	 */
 	function update_variants_type( $experiment_id, $variants_type ) {
 		global $wpdb;
 		$data = compact( 'variants_type' );
@@ -194,7 +341,55 @@ class ShrimpTest_Model {
 		$wpdb->update( "{$this->db_prefix}experiments", $data, $where, '%s', '%d' );
 		do_action( 'shrimptest_update_variants_type', $experiment_id, $variants_type );
 	}
-		
+	
+	/**
+	 * Get the computed stats for the specified experiment
+	 *
+	 * Will try to pull the stats from the stats cache (which uses the WordPress
+	 * Transients API), but will recreate it if it has expired or if
+	 * {@link $force} is set.
+	 *
+	 * The return value is organized as follows: for an experiment with X variants,
+	 * there will be X+2 entries. Entries 0..(X-1) will have statistics for each
+	 * of the variants. There is also an entry called "total". The variant and total
+	 * statistics entries are themselves arrays, with the following entries:
+	 * <ul>
+	 * <li>variant_name</li>
+	 * <li>N, the number of participants in the experiment</li>
+	 * <li>avg, the average value of the metric</li>
+	 * <li>sum, the aggregate total value of the metric</li>
+	 * <li>sd, the variance of the metric, in standard deviations</li>
+	 * </ul>
+	 * In addition, the X-1 variant entries which are not the control (entries
+	 * 1..(X-1)) will have "zscore" and "p" entries, which are the z-score and
+	 * p-value of the variant, when compared to the control.
+	 *
+	 * Finally, the return value also has a "stats" entry which contains the
+	 * following properties:
+	 * <ul>
+	 * <li>unix, human, two representations for the time when this stat was
+	 * computed</li>
+	 * <li>time, how long this experiment calculation took</li>
+	 * <li>duration_reached, true if the experiment has specified an experiment
+	 * duration and it has been reached.</li>
+	 * </ul>
+	 *
+	 * If the experiment specification specified an experiment duration, and it
+	 * has been met with this experiment stats computation, the action
+	 * shrimptest_experiment_duration_reached will be triggered, and the
+	 * duration_reached property will be added to the experiment data.
+	 *
+	 * @global wpdb
+	 * @param int
+	 * @param bool
+	 * @return array see description for specification
+	 * @uses zscore()
+	 * @uses normal_cdf()
+	 * @uses update_experiment()
+	 * @action shrimptest_experiment_duration_reached
+	 * @filter shrimptest_experiment_stats
+	 * @todo support metric types whose "type" is not "better"
+	 */
 	function get_experiment_stats( $experiment_id, $force = false ) {
 		global $wpdb;
 
@@ -230,7 +425,7 @@ class ShrimpTest_Model {
 		       . " where vv.experiment_id = {$experiment_id}"
 		       . " group by unique_visitor_id"
 		       . " having variant_count = 1";
-		// note: having variant_count = 1 ensures that we throw out 
+		// note: having variant_count = 1 ensures that we throw out invalid experiments
 		$total_sql = "select count(unique_visitor_id) as N, avg(value) as avg, sum(value) as sum, stddev(value) as sd from ({$uvsql}) as uv";
 
 		$stats = array();
@@ -243,7 +438,7 @@ class ShrimpTest_Model {
 		foreach ( $variant_stats as $variant ) {
 			$variant->zscore = $this->zscore( $stats['total'], $variant );
 			if ( $variant->zscore !== null ) {
-				$variant->type = 'better'; // TODO: "better", "different", "worse"
+				$variant->type = 'better';
 				$variant->p = $this->normal_cdf($variant->zscore,$variant->type == 'better');
 			}
 			$stats[$variant->variant_id] = $variant;
@@ -259,10 +454,12 @@ class ShrimpTest_Model {
 			$duration_reached = ( isset( $experiment->data['duration_reached'] ) && $experiment->data['duration_reached'] );
 			if ( !$duration_reached && ( (int) $stats['total']->N ) >= ( (int) $experiment->data['duration'] ) ) {
 				// the experiment duration has been reached!
+				$duration_reached = true;
 				$experiment->data['duration_reached'] = true;
 				$this->update_experiment( $experiment->experiment_id, $experiment );
 				do_action( 'shrimptest_experiment_duration_reached', $stats, $experiment );
 			}
+			$stats['duration_reached'] = $duration_reached;
 		}
 
 		$stats = apply_filters( 'shrimptest_experiment_stats', $stats, $experiment );
@@ -277,50 +474,18 @@ class ShrimpTest_Model {
 		
 		return $stats;
 	}
+	/**#@-*/
 	
-	function zscore( $control, $variant ) {
-		if ( isset( $control ) && $variant->N && $control->N && ( $variant->sd || $control->sd ) )
-			return ( $variant->avg - $control->avg ) / sqrt( (pow($variant->sd, 2) / ($variant->N)) + (pow($control->sd, 2) / ($control->N)) );
-		else
-			return null;
-	}
-	
-	// CDF = culmulative distribution function, the integral of the probability density function (PDF)
-	function normal_cdf( $z, $type = 'different' ) {
-
-		// first, compute the single- (right-)tailed area:
-		// \int_{z}^{+\infty} Norm(x) dx
-		$absz = abs($z);
-
-		// coefficients
-		$a1 = 0.0000053830;
-		$a2 = 0.0000488906;
-		$a3 = 0.0000380036;
-		$a4 = 0.0032776263;
-		$a5 = 0.0211410061;
-		$a6 = 0.0498673470;
-
-		$right_tail = pow(((((($a1*$absz+$a2)*$absz+$a3)*$absz+$a4)*$absz+$a5)*$absz+$a6)*$absz+1,-16) / 2;
-		if ( $z < 0 )
-			$right_tail = 1 - $right_tail;
-		
-		switch ( $type ) {
-			case 'worse':
-				return $right_tail;
-			case 'better':
-				return 1 - $right_tail;
-			case 'different':
-				return abs(1 - 2 * $right_tail);
-		}
-		
-	}
-	
-	/*
-	 * EXPERIMENT VARIANT FUNCTIONS
+	/**#@+
+	 * EXPERIMENT VARIANT FUNCTIONS<br/>
 	 */
-	
-	/*
-	 * get_experiment_variants: get a list of variants for the current experiment
+	/**
+	 * Get a list of variants for the given experiment
+	 *
+	 * @global wpdb
+	 * @param int
+	 * @param wpdb_result_type
+	 * @return array
 	 */
 	function get_experiment_variants( $experiment_id, $type = OBJECT ) {
 		global $wpdb;
@@ -336,6 +501,14 @@ class ShrimpTest_Model {
 		return $results;
 	}
 	
+	/**
+	 * Get a particular experiment variant and its specification
+	 *
+	 * @global wpdb
+	 * @param int
+	 * @param int
+	 * @return array
+	 */
 	function get_experiment_variant( $experiment_id, $variant_id = 0 ) {
 		global $wpdb;
 		if ( !$variant_id ) // the default (control) is 0
@@ -348,11 +521,27 @@ class ShrimpTest_Model {
 		return $variant;
 	}
 	
+	/**
+	 * Delete an experiment variant
+	 *
+	 * @global wpdb
+	 * @param int
+	 * @param int
+	 */
 	function delete_experiment_variant( $experiment_id, $variant_id ) {
 		global $wpdb;
 		$wpdb->query( $wpdb->prepare( "delete from {$this->db_prefix}experiments_variants where where `experiment_id` = %d and `variant_id` = %d", $experiment_id, $variant_id ) );
 	}
 	
+	/**
+	 * Update an experiment variant
+	 *
+	 * @global wpdb
+	 * @param int
+	 * @param int
+	 * @param array|object
+	 * @uses array_replace_recursive()
+	 */
 	function update_experiment_variant( $experiment_id, $variant_id, $variant_data ) {
 		global $wpdb;
 		
@@ -388,13 +577,21 @@ class ShrimpTest_Model {
 																	$variant_name, (int) $assignment_weight, $data ) );
 	}
 	
+	/**
+	 * Update multiple variants of an experiment
+	 *
+	 * @global wpdb
+	 * @param int
+	 * @param array variants specifications, keyed by variant id
+	 * @uses update_experiment_variant()
+	 * @todo rewrite this to decrease the number of queries that are called.
+	 */
 	function update_experiment_variants( $experiment_id, $variants ) {
 		global $wpdb;
 		// let's first order the variants and make sure there are no skipped ID's.
 		ksort( $variants );
 		$variants = array_values( $variants );
 
-		// TODO: rewrite this to decrease the number of queries that are called.
 		foreach ( $variants as $variant_id => $variant_data )
 			$this->update_experiment_variant( $experiment_id, $variant_id, $variant_data );
 
@@ -404,19 +601,21 @@ class ShrimpTest_Model {
 																	. "where experiment_id = %d and variant_id >= %d",
 																	$experiment_id, $variant_count ) );
 	}
-		
-	/*
-	 * update_visitor_metric
-	 * @param int     $metric_id
-	 * @param float   $value
-	 * @param boolean $monotonic - if true, will only update if the value is greater (optional)
-	 * @param int     $visitor_id
+	/**#@-*/
+	
+	/**
+	 * Update a metric value for the given visitor
+	 *
+	 * @global wpdb
+	 * @param int
+	 * @param float
+	 * @param boolean if true, will only update if the value is greater (optional)
+	 * @param int
+	 * @todo validate metric id and/or $value, but note, we've already touched in 
+	 *   {@link ShrimpTest::update_visitor_metric()}
 	 */ 
 	function update_visitor_metric( $experiment_id, $value, $monotonic, $visitor_id ) {
 		global $wpdb;
-
-		// TODO: validate metric id and/or $value
-		// but note, we've already touched in ShrimpTest->update_visitor_metric
 		
 		$sql = "insert into `{$this->db_prefix}visitors_metrics`
 						  (`visitor_id`, `experiment_id`, `value`)
@@ -427,10 +626,17 @@ class ShrimpTest_Model {
 		return $wpdb->query( $sql );
 	}
 
-	/*
-	 * get_visitor_variant: get the variant for the given experiment and visitor
+	/**
+	 * Get the variant specification for the given experiment and visitor so that
+	 * we can use it
 	 *
-	 * @uses w_rand
+	 * @global wpdb
+	 * @param int
+	 * @param int
+	 * @uses w_rand()
+	 * @uses get_visitor_variant()
+	 * @uses ShrimpTest::touch_experiment()
+	 * @return array
 	 */
 	function get_visitor_variant( $experiment_id, $visitor_id ) {
 		global $wpdb;
@@ -469,31 +675,17 @@ class ShrimpTest_Model {
 		return $variant;
 	}
 
-	/*
-	 * w_rand: takes an associated array with numerical values and returns a weighted-random key
-	 * Based on code from http://20bits.com/articles/random-weighted-elements-in-php/
+	/**
+	 * Get an array of variant type objects with some basic metadata, for editing.
 	 *
-	 * required for get_visitor_variant()
+	 * Used by the ShrimpTest UI, so variants which are _programmatic will be
+	 * disabled, unless they are turned on, for example.
+	 *
+	 * @param string
+	 * @uses sort_by_defaultness()
+	 * @filter shrimptest_get_variant_types_to_edit
+	 * @return array
 	 */
-	function w_rand($weights) {
-
-		// normalize the weights first so that they sum to 1
-		$sum = array_sum($weights);
-		foreach ( $weights as $k => $w ) {
-			$weights[$k] = $w / $sum;
-		}
-		
-		// pick 
-		$r = mt_rand( 1, 1000 );
-		$offset = 0;
-		foreach ( $weights as $k => $w ) {
-			$offset += $w * 1000;
-			if ( $r <= $offset ) {
-				return $k;
-			}
-		}
-	}
-
 	function get_variant_types_to_edit( $current_type = null ) {
 		$types = array();
 		$locked = false;
@@ -515,12 +707,36 @@ class ShrimpTest_Model {
 		return $types;
 	}
 
+	/**
+	 * Return a "display-friendly" string of a given metric value, based on the
+	 * metric that it is.
+	 * 
+	 * For example, if the metric is counting currency, the function may take 
+	 * 5 and return '$5'.
+	 *
+	 * @param string
+	 * @param float
+	 * @param float
+	 * @filter shrimptest_display_metric_*_value
+	 * @return string
+	 */
 	function display_metric_value( $metric_name, $value, $raw = null ) {
 		if ( is_numeric( $value ) && !is_int( $value ) )
 			$value = round( $value, 4 );
 		return apply_filters( 'shrimptest_display_metric_'.$metric_name.'_value', $value, $value, $raw );
 	}
 	
+	/**
+	 * Get an array of metric type objects with some basic metadata, for editing.
+	 *
+	 * Used by the ShrimpTest UI, so metrics which are _programmatic will be
+	 * disabled, unless they are turned on, for example.
+	 *
+	 * @param string
+	 * @uses sort_by_defaultness()
+	 * @filter shrimptest_get_metric_types_to_edit
+	 * @return array
+	 */
 	function get_metric_types_to_edit( $current_type = null ) {
 		$types = array();
 		$locked = false;
@@ -541,7 +757,20 @@ class ShrimpTest_Model {
 		apply_filters( 'shrimptest_get_metric_types_to_edit', $types, $current_type );
 		return $types;
 	}
-
+	
+	/**#@+
+	 * HELPER FUNCTIONS<br/>
+	 */
+	/**
+	 * Sort by "defaultness"
+	 *
+	 * A sorting function which will prefer to order objects which have the _default
+	 * property further forward.
+	 *
+	 * @param object
+	 * @param object
+	 * @return int
+	 */
 	function sort_by_defaultness( $a, $b ) {
 		if ( isset($a->_default) && $a->_default && !$b->_default )
 			return -1;
@@ -552,9 +781,97 @@ class ShrimpTest_Model {
 		return 1;
 	}
 	
+	/**
+	 * Take an associated array with numerical values and returns a weighted-random key
+	 *
+	 * @link http://20bits.com/articles/random-weighted-elements-in-php/
+	 */
+	function w_rand($weights) {
+
+		// normalize the weights first so that they sum to 1
+		$sum = array_sum($weights);
+		foreach ( $weights as $k => $w ) {
+			$weights[$k] = $w / $sum;
+		}
+		
+		// pick 
+		$r = mt_rand( 1, 1000 );
+		$offset = 0;
+		foreach ( $weights as $k => $w ) {
+			$offset += $w * 1000;
+			if ( $r <= $offset ) {
+				return $k;
+			}
+		}
+	}
+	 
+	/**
+	 * Compute a z-score based on the control's stats and the variant's stats
+	 *
+	 * @param array
+	 * @param array
+	 * @return float
+	 */
+	function zscore( $control, $variant ) {
+		if ( isset( $control ) && $variant->N && $control->N && ( $variant->sd || $control->sd ) )
+			return ( $variant->avg - $control->avg ) / sqrt( (pow($variant->sd, 2) / ($variant->N)) + (pow($control->sd, 2) / ($control->N)) );
+		else
+			return null;
+	}
+
+	/**
+	 * Implements a normal culmulative distribution function (CDF), the integral of
+	 * the probability density function.
+	 *
+	 * {@link $type} can be 'worse', 'better', or 'different'.
+	 *
+	 * @param float
+	 * @param string which type of integral we want to compute
+	 * return float
+	 */
+	function normal_cdf( $z, $type = 'different' ) {
+
+		// first, compute the single- (right-)tailed area:
+		// \int_{z}^{+\infty} Norm(x) dx
+		$absz = abs($z);
+
+		// coefficients
+		$a1 = 0.0000053830;
+		$a2 = 0.0000488906;
+		$a3 = 0.0000380036;
+		$a4 = 0.0032776263;
+		$a5 = 0.0211410061;
+		$a6 = 0.0498673470;
+
+		$right_tail = pow(((((($a1*$absz+$a2)*$absz+$a3)*$absz+$a4)*$absz+$a5)*$absz+$a6)*$absz+1,-16) / 2;
+		if ( $z < 0 )
+			$right_tail = 1 - $right_tail;
+		
+		switch ( $type ) {
+			case 'worse':
+				return $right_tail;
+			case 'better':
+				return 1 - $right_tail;
+			case 'different':
+				return abs(1 - 2 * $right_tail);
+		}
+	}
+	/**#@-*/
+	
 } // class ShrimpTest_Model
 
-
+/**
+ * Register a custom variant type
+ *
+ * The variant type specification will be stored within
+ * {@link ShrimpTest_Model::variant_types}, keyed by the variant type {@link $name}.
+ * If {@link $args} is a class name, an instance of that class will be initialized 
+ * and used.
+ * 
+ * @param string
+ * @param object|array|classname
+ * @link http://shrimptest.com/docs/variant-and-metric-api/
+ */
 function register_shrimptest_variant_type( $name, $args ) {
 	global $shrimp;
 
@@ -591,9 +908,20 @@ function register_shrimptest_variant_type( $name, $args ) {
 	$args->name = $name;
 
 	$shrimp->model->variant_types[$name] = $args;
-
 }
 
+/**
+ * Register a custom metric type
+ *
+ * The variant type specification will be stored within
+ * {@link ShrimpTest_Model::metric_types}, keyed by the metric type {@link $name}.
+ * If {@link $args} is a class name, an instance of that class will be initialized 
+ * and used.
+ * 
+ * @param string
+ * @param object|array|classname
+ * @link http://shrimptest.com/docs/variant-and-metric-api/
+ */
 function register_shrimptest_metric_type( $name, $args ) {
 	global $shrimp;
 
@@ -630,12 +958,26 @@ function register_shrimptest_metric_type( $name, $args ) {
 	$args->name = $name;
 
 	$shrimp->model->metric_types[$name] = $args;
-
 }
 
+/**
+ * Implements array_replace_recursive() for PHP <5.3.0.
+ *
+ * @link http://us3.php.net/array_replace_recursive
+ * @uses array_replace_recursive_recurse()
+ * @param array
+ * @param array
+ * @return array
+ */
 if ( !function_exists('array_replace_recursive') ) {
   function array_replace_recursive($array, $array1) {
 		if ( !function_exists('array_replace_recursive_recurse') ) {
+			/**
+			 * Helper function for {@link array_replace_recursive()}
+			 * @param array
+			 * @param array
+			 * @return array
+			 */
 			function array_replace_recursive_recurse($array, $array1) {
 				foreach ($array1 as $key => $value) {
 					// create new key in $array, if it is empty or not an array

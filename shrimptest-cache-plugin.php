@@ -1,19 +1,35 @@
 <?php
-/*
+/**
  * ShrimpTest plugin for WP Super Cache / W3 Total Cache
  *
  * To enable ShrimpTest support for WP Super Cache, place this plugin file in 
- *   wp-content/plugins/wp-super-cache/plugins .
+ * <code>wp-content/plugins/wp-super-cache/plugins</code>
  * Once installed, you must switch your WP Super Cache settings to "half on" mode.
  * Then make sure that it says "ShrimpTest support is enabled" at the bottom of the 
  * WP Super Cache Manager page.
  * 
  * To enable ShrimpTest support for W3 Total Cache, place this plugin file in 
- *   wp-content/plugins/w3-total-cache/plugins .
+ * <code>wp-content/plugins/w3-total-cache/plugins</code>
  * Once installed, you must switch your W3 Total Cache Page Cache setting to use
  * the "Disk (basic)" method. "Disk (enhanced)" is not supported at this time.
+ *
+ * @author mitcho (Michael Yoshitaka Erlewine) <mitcho@mitcho.com>, Automattic
+ * @package ShrimpTest
+ * @subpackage ShrimpTest_Plugin_Cache
  */
-
+ 
+/**
+ * ShrimpTest cache key filter
+ * 
+ * Update the cache key passed in by the caching plugin with extra information on
+ * the visitor's experiment participation status. The added information is suffixed
+ * on, with the __ delimiter. If experiment status needs to be computed (and thus
+ * we should not cache this page) an md5 hash is tacked on instead.
+ * 
+ * @global object
+ * @param string $key cache key
+ * @return string updated cache key
+ */
 function shrimptest_cache_key_filter( $key ) {
 	$use_shrimptest = ( defined( 'SHRIMPTEST_VERSION' ) && version_compare( SHRIMPTEST_VERSION, 0.1, '>=' ) );
 	if ( !$use_shrimptest )
@@ -44,18 +60,37 @@ function shrimptest_cache_key_filter( $key ) {
 	return $key;
 }
 
-// IF W3 TOTAL CACHE
+/**
+ * IF W3 TOTAL CACHE
+ * register {@link shrimptest_cache_key_filter} against the w3tc_pgcache_cache_key
+ * filter.
+ */
 if ( function_exists('w3tc_add_action') ) {
 	w3tc_add_action('w3tc_pgcache_cache_key', 'shrimptest_cache_key_filter');
 }
 
-// IF WP SUPER CACHE
+/**
+ * IF WP SUPER CACHE
+ * register {@link shrimptest_cache_key_filter} against the wp_cache_key
+ * filter.
+ */
 if ( function_exists('add_cacheaction') ) {
 	global $wp_super_cache_late_init, $wp_super_cache_debug;
 	if ( !$wp_super_cache_late_init )
 		continue;
 
 	add_cacheaction( 'wp_cache_key', 'shrimptest_cache_key_filter' );
+
+	/**
+	 * WP Super Cache admin UI
+	 * 
+	 * If we're using WP Super Cache, add some text to the WP Super Cache settings
+	 * page. This function is registered against the cache_admin_page action.
+	 *
+	 * @global object
+	 * @global string
+	 * @global boolean
+	 */
 	
 	function wp_supercache_shrimptest_admin() {
 		global $shrimp, $wp_cache_config_file, $wp_super_cache_late_init;

@@ -1,13 +1,29 @@
 <?php
-/*
- * Notification plugin
- * This plugin emails you when an experiment's pre-set duration has been reached.
+/**
+ * ShrimpTest Notification plugin
+ *
+ *  This plugin emails you when an experiment's pre-set duration has been reached.
+ *
+ * @author mitcho (Michael Yoshitaka Erlewine) <mitcho@mitcho.com>, Automattic
+ * @package ShrimpTest
+ * @subpackage ShrimpTest_Plugin_Notification
  */
 
+/**
+ * The email address from which notifications are sent.
+ *
+ * By default, will be 'shrimptest-noreply@DOMAIN.COM'.
+ */
 if ( !defined( 'SHRIMPTEST_NOTIFICATION_FROM' ) )
 	define( 'SHRIMPTEST_NOTIFICATION_FROM', 'shrimptest-noreply@' . $_SERVER['HTTP_HOST'] );
 
 add_action( 'shrimptest_add_duration_extra', 'shrimptest_plugin_notification_form', 10, 1 );
+/**
+ * Print the notification form element in the duration extra portion of the
+ * 'Add new experiment' screen
+ *
+ * @param object
+ */
 function shrimptest_plugin_notification_form( $experiment ) {
 	$value = isset( $experiment->data['notification_emails'] ) ? 
 	  esc_attr( $experiment->data['notification_emails'] ) : '';
@@ -16,6 +32,13 @@ function shrimptest_plugin_notification_form( $experiment ) {
 }
 
 add_action( 'shrimptest_experiment_duration_reached', 'shrimptest_plugin_notification', 10, 2 );
+/**
+ * Send out an email when experiment duration is reached
+ *
+ * @param array
+ * @param object
+ * @return array
+ */
 function shrimptest_plugin_notification( $stats, $experiment ) {
 	global $shrimp;
 	// if notifications were requested, and we haven't notified yet.

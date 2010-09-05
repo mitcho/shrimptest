@@ -1,19 +1,59 @@
 <?php
-
-/*
- * class ShrimpTest_Variant_Title
+/**
+ * ShrimpTest Title variant type
+ *
+ * Implements the ShrimpTest Title variant type.
+ *
+ * @author mitcho (Michael Yoshitaka Erlewine) <mitcho@mitcho.com>, Automattic
+ * @package ShrimpTest
+ * @subpackage ShrimpTest_Variant_Title
  */
 
-class ShrimpTest_Variant_Title {
+/**
+ * ShrimpTest Title variant type class
+ *
+ * An object-oriented variant type specification. This class name is handed to
+ * {@link register_shrimptest_variant_type()} at the end of this file so it is registered.
+ *
+ * Many of the properties in the resulting object are there as
+ * {@link register_shrimptest_variant_type()} expects them.
+ *
+ * @link http://shrimptest.com/docs/variant-and-metric-api/
+ */
+ class ShrimpTest_Variant_Title {
 	
+	/**
+	 * The user-facing label for the variant
+	 * @var string
+	 */
 	var $label = 'Title';
-	// can only be set programmatically:
+	/**
+	 * Set so that this variant can only be set programmatically:
+	 * @var bool
+	 */
 	var $_programmatic = true;
 	
+	/**
+	 * The meta key used to store the experiment id for the post
+	 * @var string
+	 */
 	var $experiment_id_meta_key = '_shrimptest_title_experiment';
+	/**
+	 * The meta key used to store the alternative titles
+	 * @var string
+	 */
 	var $titles_meta_key = '_shrimptest_title_titles';
-	
+
+	/**
+	 * Constructor
+	 *
+	 * Sets up actions and filters.
+	 *
+	 * @param ShrimpTest
+	 */	
 	function ShrimpTest_Variant_Title( $shrimptest_instance ) {
+
+		$this->label = __('Title','shrimptest');
 
 		$this->shrimp =& $shrimptest_instance;
 		$this->model =& $shrimptest_instance->model;
@@ -32,6 +72,9 @@ class ShrimpTest_Variant_Title {
 
 	}
 	
+	/**
+	 * Register the 'Alternative titles' meta box
+	 */
 	function add_title_metabox( ) {
 		add_meta_box( 'shrimptest_title', __('Alternative titles', 'shrimptest'), 
                 array( &$this, 'title_metabox' ), 'post', 'advanced' );
@@ -39,6 +82,13 @@ class ShrimpTest_Variant_Title {
                 array( &$this, 'title_metabox' ), 'page', 'advanced' );
 	}
 	
+	/**
+	 * Print the 'Alternative titles' meta box
+	 *
+	 * @global int
+	 * @uses ShrimpTest_Model::get_experiment_status()
+	 * @uses get_titles()
+	 */
 	function title_metabox( ) {
 		global $post_ID;
 		// check to see if the experiment is already running. In that case, don't let us change.
@@ -85,6 +135,18 @@ class ShrimpTest_Variant_Title {
 		echo '</tbody></table>';
 	}
 	
+	/**
+	 * Use the POST data to create or update the associated experiment
+	 *
+	 * @param int
+	 * @param array
+	 * @uses ShrimpTest_Model::get_reserved_experiment_id()
+	 * @uses ShrimpTest_Model::get_experiment_status()
+	 * @uses ShrimpTest_Model::update_experiment_status()
+	 * @uses Shrimptest_Model::delete_experiment()
+	 * @uses $experiment_id_meta_key
+	 * @uses ShrimpTest_Model::update_experiment_variants()
+	 */
 	function save_postdata( $post_ID, $post ) {
 
 		// verify nonce
@@ -163,6 +225,9 @@ class ShrimpTest_Variant_Title {
 		$this->model->update_experiment_variants( (int) $experiment_id, $variants );
 	}
 	
+	/**
+	 * Print styling and JavaScript for the 'Add new experiment' page
+	 */
 	function edit_style_and_script( ) {
 ?>
 
@@ -241,9 +306,18 @@ jQuery(function($){
 </script>
 
 <?php
-
 	}
-		
+	
+	/**
+	 * Get an array of alternative titles (variants) for this post/experiment
+	 *
+	 * @param int
+	 * @global array
+	 * @global int
+	 * @uses $experiment_id_meta_key
+	 * @uses ShrimpTest_Model::get_experiment_variants()
+	 * @return array
+	 */
 	function get_titles( $id = null ) {
 		if ( $id == null ) {
 			global $post, $post_ID;
@@ -256,10 +330,23 @@ jQuery(function($){
 		return array_map( array( &$this, 'return_name' ), $variants );
 	}
 	
-	function return_name( $arr ) {
-		return $arr->variant_name;
+	/**
+	 * Return the variant_name property from the given object
+	 * @param object
+	 * @return string
+	 */
+	function return_name( $object ) {
+		return $object->variant_name;
 	}
 	
+	/**
+	 * Print a message at the end of the page/post noting that an inactive experiment
+	 * exists
+	 *
+	 * @global int
+	 * @uses ShrimpTest_Model::get_experiment_status()
+	 * @uses ShrimpTest::get_interface_slug()
+	 */
 	function edit_helper( ) {
 		global $post_ID;
 
@@ -273,13 +360,28 @@ jQuery(function($){
 		}
 	}
 
+	/**
+	 * Print a message in the 'variant extra' section of the 'Add new experiment' screen
+	 * @todo add a real link to this message.
+	 */
 	function admin_add_variant_extra( ) {
-		// TODO: add a real link to this message.
 		?>
 		<tr class="variants_extra variants_extra_title"><td colspan="3"><p><?php _e( "You can edit the variants by visiting the original post/page.", 'shrimptest' );?></p></td></tr>
 		<?php
 	}
 	
+	/**
+	 * Return the appropriate title, depending on the visitor's experiment
+	 * status
+	 *
+	 * It is registered against the the_title filter.
+	 *
+	 * @param string
+	 * @param int
+	 * @uses ShrimpTest::get_visitor_variant()
+	 * @uses ShrimpTest_Model::get_experiment_variant()
+	 * @return string
+	 */
 	function swap_title( $title, $id ) {
 		$experiment_id = get_post_meta( $id, $this->experiment_id_meta_key, true );
 		if ( !$experiment_id )

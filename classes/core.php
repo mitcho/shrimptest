@@ -1,40 +1,114 @@
 <?php
-
-/*
- * class ShrimpTest
+/**
+ * ShrimpTest Core class file
+ *
+ * @author mitcho (Michael Yoshitaka Erlewine) <mitcho@mitcho.com>, Automattic
+ * @package ShrimpTest
  */
 
+/**
+ * ShrimpTest Core class
+ *
+ * The core ShrimpTest controller class. One global instance of this class is
+ * created, as {@link $shrimp}.
+ *
+ * @package ShrimpTest
+ */
 class ShrimpTest {
 
-	// some constants based on WordPress install:
+	/**#@+
+	 * Some cookie environment constants based on WordPress install
+	 * @var string
+	 */
 	var $cookie_domain;
 	var $cookie_path;
+	/**#@-*/
 	
-	// should be configurable:
+	/**
+	 * By default, set to "ebisen"
+	 * @var string
+	 */
 	var $cookie_name;
+	/**
+	 * A random hash used to produce the random cookie values
+	 * @var string
+	 */
 	var $cookie_dough;
+	/**
+	 * How long ShrimpTest cookies should live for
+	 * @var int
+	 */
 	var $cookie_days;
 
-	// versioning:	
-	var $db_version = 28; // change to force database schema update
+	/**
+	 * Database schema version: change to force database schema update
+	 * @var int
+	 */
+	var $db_version = 28;
 	
-	// variables to track information about/throughout the current execution
+	/**#@+
+	 * Variables to track information about/throughout the current execution
+	 */
+	/**
+	 * @var int
+	 */
 	var $visitor_id;
+	/**
+	 * @var string
+	 */
 	var $visitor_cookie;
+	/**#@-*/
+	
+	/**
+	 * A collection of information on the experiments which were "touched"
+	 * during this execution.
+	 * @var array
+	 */
 	var $touched_experiments;
+	/**
+	 * A collection of information on the metrics which were "touched"
+	 * during this execution.
+	 * @var array
+	 */
 	var $touched_metrics;
+	/**
+	 * An array which maps experiments to overridden variants, for when the
+	 * logged-in user has used the variant preview to override the variant they
+	 * are viewing.
+	 * @var array
+	 */
 	var $override_variants;
 		
-	// references to the Interface and Model objects
+	/**
+	 * reference to the {@link ShrimpTest_Interface} instance
+	 * @var ShrimpTest_Interface
+	 */
 	var $interface = null;
+	/**
+	 * reference to the {@link ShrimpTest_Model} instance
+	 * @var ShrimpTest_Model
+	 */
 	var $model = null;
 
+
+	/**
+	 * {@link ShrimpTest} constructor
+	 *
+	 * Hint: run {@link init()} to get the party started.
+	 */
 	function ShrimpTest( ) {
-		// Hint: run init( ) to get the party started.
 	}
 
+	/**
+	 * The actual initialization function
+	 *
+	 * Initializes all the internal cookie settings, calls
+	 * {@link load_model_and_interface()}, {@link load_default_metric_and_variant()},
+	 * {@link load_plugins()}, and then registers a number of actions.
+	 *
+	 * Must be called separately, after the constructor.
+	 */
 	function init( ) {
-		global $wpdb;
 		
 		// Let other plugins modify various options
 		$this->cookie_domain = apply_filters( 'shrimptest_cookie_domain', COOKIE_DOMAIN );
@@ -57,9 +131,20 @@ class ShrimpTest {
 		add_action( 'wp_ajax_shrimptest_override_variant', array( &$this, 'override_variant' ) );
 		
 		do_action( 'shrimptest_init', &$this );
-		
 	}
 	
+	/**
+	 * Initialize a {@link ShrimpTest_Model} as {@link $model} and
+	 * {@link ShrimpTest_Interface} as {@link $interface}
+	 *
+	 * The {@link SHRIMPTEST_MODEL_CLASS} and {@link SHRIMPTEST_INTERFACE_CLASS}
+	 * constants are used as the model and interface class names, respectively.
+	 *
+	 * @uses ShrimpTest_Model
+	 * @uses ShrimpTest_Interface
+	 * @uses ShrimpTest_Model::init()
+	 * @uses ShrimpTest_Interface::init()
+	 */
 	function load_model_and_interface( ) {
 		// load all the available classes
 		foreach ( glob( SHRIMPTEST_DIR . '/classes/*.php' ) as $class ) {
@@ -82,19 +167,37 @@ class ShrimpTest {
 		$shrimp_interface->model = &$shrimp_model; // Interface is given a reference to Model
 	}
 	
+	/**
+	 * Load the default metric and variant types: the "manual" type
+	 *
+	 * @uses register_shrimptest_metric_type()
+	 * @uses register_shrimptest_variant_type()
+	 */
 	function load_default_metric_and_variant( ) {
 		register_shrimptest_metric_type( 'manual', array( 'label' => 'Manual (PHP required)' ) );
 		register_shrimptest_variant_type( 'manual', array( 'label' => 'Manual (PHP required)' ) );
 	}
-	
+
+	/**
+	 * Load all files in the /plugins directory
+	 */	
 	function load_plugins( ) {
 		foreach ( glob( SHRIMPTEST_DIR . '/plugins/*.php' ) as $plugin )
 			include_once $plugin;
 	}
 	
-	/*
-	 * check_cookie
-	 */	
+	/**
+	 * Check to see if the user has a valid ShrimpTest cookie. If not, calls
+	 * {@link set_cookie()}.
+	 *
+	 * This will only happen if the user is not "exempt", as determined by
+	 * {@link exempt_visitor()}.
+	 *
+	 * @global wpdb
+	 * @uses exempt_visitor()
+	 * @uses blocked_visit()
+	 * @uses set_cookie()
+	 */
 	function check_cookie( ) {
 		global $wpdb;
 
@@ -133,10 +236,13 @@ class ShrimpTest {
 		
 	}
 
-	/*
-	 * set_cookie: sets the cookie and returns the internal id
-	 * TODO: consider fallback for when the browser does not have cookies set.
-	 */	
+	/**
+	 * Sets the cookie and returns the visitor id
+	 *
+	 * @global wpdb
+	 * @return int
+	 * @todo consider fallback for when the browser does not have cookies set.
+	 */
 	function set_cookie( ) {
 		global $wpdb;
 		
@@ -164,6 +270,16 @@ class ShrimpTest {
 		}		
 	}
 
+	/**
+	 * Check whether this visitor/visit should be "blocked" from the testing pool.
+	 * 
+	 * A visit is blocked if it's an AJAX or XMLRPC call, if we're in wp-admin,
+	 * or if the shrimptest_blocked_visit filter returns true.
+	 * 
+	 * @param string user agent string
+	 * @filter shrimptest_blocked_visit
+	 * @return bool
+	 */
 	function blocked_visit( $user_agent = false ) {
 
 		// don't block record_cookieability calls
@@ -185,6 +301,16 @@ class ShrimpTest {
 		return apply_filters( 'shrimptest_blocked_visit', false, $user_agent );
 	}
 	
+	/**
+	 * Check whether the visitor/visit is exempt from ShrimpTest behavior.
+	 *
+	 * A user is exempt if they're logged in or if the shrimptest_exempt_visitor
+	 * filter returns true.
+	 *
+	 * @filter shrimptest_exempt_visitor
+	 * @uses is_user_logged_in()
+	 * @return bool
+	 */
 	function exempt_visitor( ) {
 		$exempt = false;
 		if ( is_user_logged_in( ) )
@@ -193,6 +319,24 @@ class ShrimpTest {
 		return $exempt;
 	}
 
+	/**
+	 * Get the current visitor's variant id for a particular experiment id
+	 *
+	 * This function will return a variant id for the current (or given) visitor
+	 * and the given experiment, first checking if the user has an "override" set.
+	 * It will only work if the visitor is not exempt.
+	 *
+	 * Returns null if unavailable.
+	 *
+	 * @global wpdb
+	 * @param int
+	 * @param int
+	 * @uses exempt_visitor()
+	 * @uses get_override_variant()
+	 * @uses touch_experiment()
+	 * @uses ShrimpTest_Model::get_visitor_variant()
+	 * @return int
+	 */
 	function get_visitor_variant( $experiment_id, $visitor_id = false ) {
 		global $wpdb;
 
@@ -215,12 +359,20 @@ class ShrimpTest {
 		return $this->model->get_visitor_variant( $experiment_id, $visitor_id );
 	}
 	
-	/*
-	 * update_visitor_metric
-	 * @param int     $experiment_id
-	 * @param float   $value
-	 * @param boolean $monotonic - if true, will only update if the value is greater (optional)
-	 * @param int     $visitor_id
+	/**
+	 * Update a goal metric's value for the current (or given user)
+	 *
+	 * Returns the updated value.
+	 *
+	 * @global wpdb
+	 * @param int
+	 * @param float
+	 * @param boolean if true, will only update if the value is greater (optional)
+	 * @param int
+	 * @uses exempt_visitor()
+	 * @uses touch_metric()
+	 * @uses ShrimpTest_Model::update_visitor_metric()
+	 * @return float
 	 */ 
 	function update_visitor_metric( $experiment_id, $value, $monotonic = false, $visitor_id = false ) {
 		global $wpdb;
@@ -241,6 +393,16 @@ class ShrimpTest {
 		return $this->model->update_visitor_metric( $experiment_id, $value, $monotonic, $visitor_id );
 	}
 
+	/**
+	 * Get the current user's "override" variant id for a particular experiment.
+	 *
+	 * A variant is "overridden" when the variant preview feature is used.
+	 *
+	 * @global int
+	 * @param int
+	 * @uses override_variants()
+	 * @return int
+	 */
 	function get_override_variant( $experiment_id ) {
 		global $user_ID;
 		get_currentuserinfo();
@@ -253,36 +415,57 @@ class ShrimpTest {
 			return 0; // control
 	}
 
-	/*
-	 * touch_experiment
+	/**
+	 * "Touch" an experiment, with the given arguments
 	 *
 	 * This function is used to keep track of what experiments were accessed ("touched") througout
 	 * the printing of the current page. This information is not normally printed, but is used to
 	 * produce the ShrimpTest bar (or ShrimpTest component of the Admin Bar) when an admin is
 	 * logged in.
+	 *
+	 * @param int
+	 * @param array
 	 */
 	function touch_experiment( $experiment_id, $args ) {
 		if ( !is_array( $this->touched_experiments[$experiment_id] ) )
 			$this->touched_experiments[$experiment_id] = array();
 		$this->touched_experiments[$experiment_id] = array_merge( $this->touched_experiments[$experiment_id], $args );
 	}
+	
+	/**
+	 * Get the array of experiments which have been "touched" throughout this
+	 * execution.
+	 *
+	 * @filter shrimptest_touched_experiments
+	 */
 	function get_touched_experiments( ) {
 		return apply_filters( 'shrimptest_touched_experiments', $this->touched_experiments );
 	}
-	/*
-	 * touch_metric: like touch_experiment, but for metrics
+	
+	/**
+	 * Like {@link touch_experiment}, but for metrics
+	 *
+	 * @param int
+	 * @param array
 	 */
 	function touch_metric( $experiment_id, $args ) {
 		if ( !is_array( $this->touched_metrics ) )
 			$this->touched_metrics = array();
 		$this->touched_metrics = array_merge( $this->touched_metrics, array( $experiment_id => $args ) );
 	}
+	
+	/**
+	 * Get the array of metrics which have been "touched" throughout this
+	 * execution.
+	 *
+	 * @filter shrimptest_touched_metrics
+	 */
 	function get_touched_metrics( ) {
 		return apply_filters( 'shrimptest_touched_metrics', $this->touched_metrics );
 	}
 
-	/*
-	 * has_been_touched
+	/**
+	 * Check whether we have "touched" any experiments or metrics during execution.
 	 *
 	 * @return boolean whether any experiments have been touched during this execution
 	 */
@@ -291,19 +474,27 @@ class ShrimpTest {
 		$touched_metrics = $this->get_touched_metrics();
 		return ( !empty( $touched_experiments ) || !empty( $touched_metrics ) );
 	}
-		
+	
+	/**
+	 * Prints a script in the footer to support accurate counting of
+	 * "unique human visitors".
+	 *
+	 * @global wpdb
+	 * @link http://shrimptest.com/2010/06/05/for-shrimptest-to-produce-accurate-stati/
+	 * @todo only disable the code below if there's caching going on.
+	 */
 	function print_foot( ) {
 		global $wpdb;
 
-// Disabled so that we still get the footer in cached versions, even if the first user's js status
-// has been recorded.
-// TODO: only disable this if there's caching going on.
-//	if ( $this->exempt_visitor( ) )
-//		return;
+		/* Disabled so that we still get the footer in cached versions, even if the first user's js status
+		has been recorded.
+		if ( $this->exempt_visitor( ) )
+			return;
 
-//	// if we already know that they have JS, no need to record again.
-//		if ( $wpdb->get_var( "select js from `{$this->db_prefix}visitors` where visitor_id = {$this->visitor_id}" ) )
-//			return;
+		// if we already know that they have JS, no need to record again.
+		if ( $wpdb->get_var( "select js from `{$this->db_prefix}visitors` where visitor_id = {$this->visitor_id}" ) )
+			return;
+		*/
 
 		$cookie_name = preg_quote($this->cookie_name);
 	?>
@@ -328,6 +519,17 @@ setTimeout(function() {
 <?php
 	}
 	
+	/**
+	 * Record the "cookieability" of a user who has pinged back
+	 *
+	 * The script printed by {@link print_foot()} will ping back, if the user has
+	 * JavaScript. This ping will then tell us whether the user actually
+	 * picked up the cookie we sent them or not. Only users whose cookies
+	 * were picked up are used in statistics.
+	 *
+	 * @link http://shrimptest.com/2010/06/05/for-shrimptest-to-produce-accurate-stati/
+	 * @global wpdb
+	 */
 	function record_cookieability( ) {
 		global $wpdb;
 
@@ -347,6 +549,11 @@ setTimeout(function() {
 		exit;
 	}
 
+	/**
+	 * Records the "override" variant specified in the $_POST request.
+	 *
+	 * @global int
+	 */
 	function override_variant( ) {
 		global $user_ID;
 		get_currentuserinfo();
@@ -366,13 +573,18 @@ setTimeout(function() {
 		exit;
 	}
 	
+	/**
+	 * Get the $slug variable from the active {@link ShrimpTest_Interface}
+	 * @return string
+	 */
 	function get_interface_slug( ) {
 		return $this->interface ? $this->interface->slug : false;
 	}
 	
-	/*
-	 * versioning: adds DB versioning support
-	 * note here I use site_option's because ShrimpTest db tables exist for each site.
+	/**
+	 * Adds DB versioning support
+	 *
+	 * Note here I use site_option because ShrimpTest db tables exist for each site.
 	 */
 	function versioning( ) {
 		if ( defined( 'DOING_AJAX' ) && DOING_AJAX  )
@@ -384,8 +596,11 @@ setTimeout(function() {
 		}
 	}
 
-	/*
-	 * ensure_db: make sure that our tables are set up.
+	/**
+	 * Make sure that our tables are set up.
+	 *
+	 * @global wpdb
+	 * @filter shrimptest_dbdelta_sql
 	 */
 	function ensure_db( ) {
 		global $wpdb;
@@ -447,7 +662,12 @@ setTimeout(function() {
 
 } // class ShrimpTest
 
-if ( !function_exists( 'array_combine' ) ) { // for PHP4
+/**
+ * array_combine, implemented for PHP 4 systems
+ *
+ * @link http://us.php.net/array_combine
+ */
+if ( !function_exists( 'array_combine' ) ) {
 	function array_combine( $a, $b ) {
 		$c = array( );
 	 

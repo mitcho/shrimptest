@@ -1,21 +1,37 @@
-/*
+<?php
+/**
  * SHRIMPTEST EXAMPLE CODE:
  * Implementing a (lower-level, PHP) conversion-style metric
  * 
  * To use this lower-level code, you must have an experiment pre-registered.
  * Here I will simply assume that you have an experiment
- * with a particular number in your `wp_shrimptest_experiments` (or equivalent) table and
- * a certain number of variants in the `wp_shrimptest_experiments_variants` table.
+ * registered with a certain number of variants.
+ *
+ * @package ShrimpTest
+ * @subpackage Example
  */
  
+/**
+ * This is the experiment id that we will use.
+ *
+ * This id should match an experiment that has been created with the "manual"
+ * metric and variant types.
+ *
+ * @var int
+ */
 $my_experiment_id = 1;
 
-/*
+/**
  * VARIANT CODE:
+ *
+ * Get the variant id for the current user, for this experiment #{@link $my_experiment_id}
+ * using {@link shrimptest_get_variant}, which returns an integer.
+ *
+ * Switch on this value. Variant 0 is the control.
+ *
+ * This switch code can be put anywhere in your custom plugin or theme.
  */
- 
 $variant = shrimptest_get_variant( $my_experiment_id );
-// $variant is going to be an integer.
 switch ( $variant ) {
   case true: // if $variant > 0
     echo "This is variant #{$variant}.";
@@ -24,9 +40,9 @@ switch ( $variant ) {
 		echo "This is the control.";
 }
 
-/*
+/**
  * GOAL CODE:
+ *
+ * The user has converted! Use {@link shrimptest_conversion_success()}
  */
-
-// the user has converted!
 shrimptest_conversion_success( $my_experiment_id );
