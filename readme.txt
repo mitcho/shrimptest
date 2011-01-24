@@ -12,7 +12,7 @@ A/B testing, the WordPress way.
 
 ShrimpTest is an A/B testing solution for WordPress under development at Automattic. For an introduction to this project, I invite you to read [Every blog has a purpose](http://shrimptest.wordpress.com/2010/06/01/every-website-has-a-purpose/).
 
-This version (1.0b1) is the feature-complete preview release. [Bug reports appreciated.](http://plugins.trac.wordpress.org/newticket?component=shrimptest)
+This version (1.0b2) is a release candidate. [Bug reports appreciated.](http://plugins.trac.wordpress.org/newticket?component=shrimptest)
 
 == Installation ==
 

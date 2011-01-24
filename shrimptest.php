@@ -32,7 +32,7 @@ define( 'SHRIMPTEST_URL', plugin_dir_url( $plugin ) );
 /**
  * ShrimpTest version number
  */
-define( 'SHRIMPTEST_VERSION', '1.0b1' );
+define( 'SHRIMPTEST_VERSION', '1.0b2' );
 
 /**
  * Load the {@link ShrimpTest} Core class file
