@@ -1,6 +1,10 @@
 <form method="post">
 <?php
-
+/**
+ * @action shrimptest_add_variant_extra
+ * @action shrimptest_add_metric_extra
+ * @action shrimptest_add_duration_extra
+ */
 global $experiment_id, $metric_id, $experiment;
 
 if ( isset( $_GET['id'] ) ) {
@@ -20,15 +24,20 @@ $experiment = $experiments[0];
 
 <div class="wrap">
 <?php screen_icon(); ?>
-<h2><?php _e( 'ShrimpTest Experiment', 'shrimptest' ); ?>: <?php _e('Add New') ?></h2>
+<h2><?php _e( 'ShrimpTest Experiment', 'shrimptest' ); ?>: <?php if ($experiment->status == 'reserved') _e('Add New'); else echo $experiment->experiment_name; ?></h2>
 <?php
 
 
 
 function shrimptest_details_metabox( ) {
+	global $experiment;
+	$status_strings = array( 'active'=>__('Active','shrimptest'), 'finished'=>__('Finished','shrimptest'), 'inactive'=>__('Not yet started','shrimptest'),
+	'reserved' => __('New', 'shrimptest'));
+	$date_format = get_option('date_format');
 ?>
 <table class='shrimptest'>
-<tr><th><?php _e('Name:','shrimptest');?></th><td><input name="name" type="text" maxlength="255" size="50"></input></td></tr>
+<tr><th><?php _e('Name:','shrimptest');?></th><td><input name="name" type="text" maxlength="255" size="50" value="<?php echo $experiment->experiment_name;?>" required></input></td></tr>
+<tr><th><?php _e('Status:','shrimptest');?></th><td><?php echo $status_strings[$experiment->status];?></td></tr>
 </table>
 <?php
 }
@@ -47,7 +56,7 @@ function shrimptest_variants_metabox( ) {
 <pre id="variants_code" class="samplecode"></pre>
 </div>
 <table class='shrimptest' id='shrimptest_variants'>
-<tr><th><?php _e('Type','shrimptest');?>:</th><td colspan="2"><select id="variants_type" name="variants_type">
+<tr><th><?php _e('Type','shrimptest');?>:</th><td colspan="2"><select id="variants_type" name="variants_type" required>
 <?php
 foreach ( $types as $code => $type ) {
   echo "<option value=\"{$code}\"".(isset($type->selected) && $type->selected ?' selected="selected"':'').(isset($type->disabled) && $type->disabled ?' disabled="disabled"':'').">" . __($type->label, 'shrimptest') . "</option>";
@@ -94,9 +103,9 @@ function shrimptest_metric_metabox( ) {
 <p><?php _e("Execute the following code when the visitor's metric value is established:",'shrimptest');?></p>
 <pre id="variants_code" class="samplecode">shrimptest_update_metric( <?php echo $experiment_id; ?>, <em>value</em> );</pre>
 </div>
-<table class='shrimptest'>
+<table class='shrimptest' id='shrimptest_metrics'>
 <!--<tr><th><?php _e('ID:','shrimptest');?></th><td><code><?php echo $experiment_id; ?></code></td></tr>-->
-<tr><th><label for="metric_type"><?php _e('Metric type:','shrimptest');?></th><td><select id="metric_type" name="metric_type">
+<tr><th><label for="metric_type"><?php _e('Metric type:','shrimptest');?></th><td><select id="metric_type" name="metric_type" required>
 <?php
 foreach ( $types as $code => $type ) {
   echo "<option value=\"{$code}\"".(isset($type->selected) && $type->selected ?' selected="selected"':'').(isset($type->disabled) && $type->disabled ?' disabled="disabled"':'').">" . __($type->label, 'shrimptest') . "</option>";
@@ -119,7 +128,7 @@ function shrimptest_duration_metabox( ) {
 	$types = $shrimp->model->get_metric_types_to_edit( $experiment->metric_type );
 
 ?>
-<table class='shrimptest'>
+<table class='shrimptest' id='shrimptest_duration'>
 <!--<tr><th><?php _e('ID:','shrimptest');?></th><td><code><?php echo $experiment_id; ?></code></td></tr>-->
 <tr><th><label for="detection"><?php _e('Detection level','shrimptest');?>:</th><td><input type="text" name="detection" id="detection" size="7" value="<?php echo isset( $experiment->data['detection'] ) ? 
 	  esc_attr( $experiment->data['detection'] ) : '';?>"></input><br/>
@@ -135,17 +144,17 @@ do_action( 'shrimptest_add_duration_extra', $experiment );
 }
 
 
-add_meta_box( 'details_box', 'Details', 'shrimptest_details_metabox', 'shrimptest_experiment', 'advanced' );
-add_meta_box( 'variants_box', 'Variants', 'shrimptest_variants_metabox', 'shrimptest_experiment', 'advanced' );
-add_meta_box( 'metric_box', 'Metric', 'shrimptest_metric_metabox', 'shrimptest_experiment', 'advanced' );
-add_meta_box( 'duration_box', 'Experiment duration', 'shrimptest_duration_metabox', 'shrimptest_experiment', 'advanced' );
+add_meta_box( 'details_box', __('Details', 'shrimptest'), 'shrimptest_details_metabox', 'shrimptest_experiment', 'advanced' );
+add_meta_box( 'variants_box', __('Variants', 'shrimptest'), 'shrimptest_variants_metabox', 'shrimptest_experiment', 'advanced' );
+add_meta_box( 'metric_box', __('Metric', 'shrimptest'), 'shrimptest_metric_metabox', 'shrimptest_experiment', 'advanced' );
+add_meta_box( 'duration_box', __('Experiment duration', 'shrimptest') . ' <small>(' . __('optional', 'shrimptest') . ')</small>', 'shrimptest_duration_metabox', 'shrimptest_experiment', 'advanced' );
 
 ?>
 <div id="poststuff" class="metabox-holder">
 <?php do_meta_boxes('shrimptest_experiment','advanced',null); ?>
 </div>
 </div>
-<input type="submit" value="<?php _e('Save new experiment','shrimptest');?>" id="submit" class="button-primary" name="submit"/>
+<input type="submit" value="<?php if ($experiment->status == 'reserved') _e('Save new experiment','shrimptest'); else _e('Save experiment','shrimptest');?>" id="submit" class="button-primary" name="submit"/>
 <small><?php _e('Your new experiment will not be active until you activate it on the next page.','shrimptest');?></small>
 
 <?php wp_nonce_field( 'shrimptest_submit_new_experiment' ); ?> 

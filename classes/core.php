@@ -60,6 +60,12 @@ class ShrimpTest {
 	/**#@-*/
 	
 	/**
+	 * An array of user-settable options which can be modified in the settings
+	 * @var options
+	 */
+	var $options = array();
+	
+	/**
 	 * A collection of information on the experiments which were "touched"
 	 * during this execution.
 	 * @var array
@@ -107,6 +113,12 @@ class ShrimpTest {
 	 * {@link load_plugins()}, and then registers a number of actions.
 	 *
 	 * Must be called separately, after the constructor.
+	 *
+	 * @filter shrimptest_cookie_domain
+	 * @filter shrimptest_cookie_path
+	 * @filter shrimptest_cookie_name
+	 * @filter shrimptest_cookie_days
+	 * @action shrimptest_init
 	 */
 	function init( ) {
 		
@@ -451,7 +463,7 @@ class ShrimpTest {
 	function touch_metric( $experiment_id, $args ) {
 		if ( !is_array( $this->touched_metrics ) )
 			$this->touched_metrics = array();
-		$this->touched_metrics = array_merge( $this->touched_metrics, array( $experiment_id => $args ) );
+		$this->touched_metrics[$experiment_id] = $args;
 	}
 	
 	/**
@@ -565,9 +577,10 @@ setTimeout(function() {
 		$this->override_variants = get_user_meta( $user_ID, "shrimptest_override_variants", true );
 		$this->override_variants[$experiment_id] = $variant_id;
 		update_user_meta( $user_ID, "shrimptest_override_variants", $this->override_variants );
-
 		if ( isset( $_SERVER['HTTP_REFERER'] ) )
 			wp_redirect( $_SERVER['HTTP_REFERER'] );
+		else if ( isset( $_REQUEST['referer'] ) )
+			wp_redirect( $_REQUEST['referer'] );
 		else
 			echo "<script type=\"text/javascript\">window.history.back();</script>";
 		exit;
@@ -658,6 +671,36 @@ setTimeout(function() {
 		$dbSql = apply_filters( 'shrimptest_dbdelta_sql', $dbSql );
 		dbDelta( $dbSql );
 		
+	}
+
+	/**
+	 * Prints options UI for the settings screen.
+	 * Currently only supports checkbox and text types well.
+	 */
+	function print_options() {
+		foreach ($this->options as $option) {
+			echo "<div>";
+			if (isset($option['before']))
+				echo "<label for='shrimptest[{$option['name']}]'>{$option['before']}</label> ";
+			$value = $this->get_option($option['name']);
+			echo "<input name='shrimptest[{$option['name']}]' id='shrimptest[{$option['name']}]' type='{$option['name']}' value='$value'>";
+			if (isset($option['after']))
+				echo " <label for='shrimptest[{$option['name']}]'>{$option['after']}</label>";
+			echo "</div>";
+		}
+	}
+	
+	function get_option($name) {
+		$options = get_option( 'shrimptest' );
+		if ( !empty($options) && isset( $options[$name] ))
+			return $options[$name];
+		return null;
+	}
+
+	function set_option($name, $value) {
+		$options = get_option( 'shrimptest' );
+		$options[$name] = $value;
+		set_option( 'shrimptest', $options );
 	}
 
 } // class ShrimpTest

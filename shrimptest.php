@@ -2,7 +2,7 @@
 /*
 Plugin Name: ShrimpTest
 Description: A/B testing the WordPress way
-Version: 1.0b1
+Version: 1.0b2
 Author: mitcho (Michael 芳貴 Erlewine), Automattic
 Author URI: http://mitcho.com
 License: GPLv2
@@ -16,14 +16,14 @@ License: GPLv2
  *
  * @author mitcho (Michael Yoshitaka Erlewine) <mitcho@mitcho.com>, Automattic
  * @package ShrimpTest
- * @version 1.0b1
+ * @version 1.0b2
  * @license GPLv2
  */
 
 /**
  * the filesystem path to ShrimpTest
  */
-define( 'SHRIMPTEST_DIR', dirname( $plugin ) );
+define( 'SHRIMPTEST_DIR', WP_PLUGIN_DIR . '/' . basename(dirname( $plugin )) );
 /**
  * the URL path to ShrimpTest
  */

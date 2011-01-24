@@ -1,4 +1,8 @@
 <?php 
+/**
+ * @filter shrimptest_save_metric_*
+ */
+
 global $wpdb;
 
 $experiment_id = (int) $_REQUEST['id'];

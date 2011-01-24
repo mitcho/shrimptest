@@ -3,8 +3,8 @@ Contributors: mitchoyoshitaka, automattic
 Plugin Name: ShrimpTest
 Tags: shrimptest, abtesting, testing, metrics
 Requires at least: 3.0
-Tested up to: 3.0.1
-Stable tag: 1.0b1
+Tested up to: 3.1
+Stable tag: 1.0b2
 
 A/B testing, the WordPress way.
 
@@ -42,8 +42,10 @@ Answer.
 * late July beta
 = 1.0b1 =
 * late August beta
+= 1.0b2 =
+* updated for WordPress 3.1 compatibility
+	* takes advantage of new Admin Bar functionality
+* some minor bug fixes
 
 == Upgrade Notice ==
 
-= 0.1 =
-Upgrade

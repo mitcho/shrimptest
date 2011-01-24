@@ -73,9 +73,6 @@ class ShrimpTest_Metric_Conversion {
 		add_action( 'shrimptest_admin_header', array( &$this, 'admin_script_and_style' ) );
 		add_filter( 'shrimptest_save_metric_conversion', array( &$this, 'admin_save_filter' ) );
 
-		// Filter for adjusting the aggregate value SQL expression ( max(ifnull(value,0)) )
-		// add_filter( 'shrimptest_get_stats_value_conversion' )
-		
 		add_action( 'parse_request', array( &$this, 'check_conversion' ) );
 		
 		// Utility function for post query vars retreival
@@ -155,8 +152,8 @@ class ShrimpTest_Metric_Conversion {
 		if ( $query_vars ) {
 			// reconstruct the appropriate title, right here, right now.
 			// NOTE: this method may be relatively fragile.
-			query_posts( $query_vars );
-			$title = wp_title( '|', false, 'right' );
+			@query_posts( $query_vars );
+			$title = @wp_title( '|', false, 'right' );
 			$title = preg_replace( '/^\s*\|?\s*(.*?)\s*\|?\s*$/', '$1', $title );
 			$metric_data['metric_name'] = sprintf( __("Conversion: <a href=\"%s\">%s</a>",'shrimptest'), $url, $title );
 			$metric_data['conversion_query_vars'] = $query_vars;

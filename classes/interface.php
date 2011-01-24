@@ -71,8 +71,13 @@ class ShrimpTest_Interface {
 		
 		add_action( 'admin_menu', array( &$this, 'admin_menu' ) );
 
-		add_action( 'wp_footer', array( &$this, 'do_adminbar' ) );
-		add_filter( 'wpabar_menuitems', array( &$this, 'filter_adminbar' ) );
+		// various types of admin bar hooks for the variant viewer
+		// WordPress 3.1 Admin Bar:
+		add_action( 'admin_bar_menu', array( &$this, 'admin_bar' ), 60 );
+		// WP Admin Bar plugin:
+		add_filter( 'wpabar_menuitems', array( &$this, 'filter_wpadminbar' ) );
+		// fallback:
+		add_action( 'wp_footer', array( &$this, 'default_widget' ) );
 	}
 	
 	/**
@@ -216,31 +221,42 @@ class ShrimpTest_Interface {
 	 * Include the experiments display page
 	 */
 	function admin_experiments( ) {
-		include SHRIMPTEST_DIR . '/admin/experiments.php';
+		if ( !current_user_can('manage_options') )
+			wp_die( __('You do not have sufficient permissions to access this page.') );
+
+		if ( isset( $_GET['action'] ) && $_GET['action'] == 'new' )
+			include SHRIMPTEST_DIR . '/admin/experiment-new.php';
+		else
+			include SHRIMPTEST_DIR . '/admin/experiments.php';
 	}
 
 	/**
 	 * Handler for adding the variant preview feature.
 	 *
-	 * Checks to see if the WP Admin Bar plugin is installed. If not, we run
+	 * Checks to see if the WP Admin Bar plugin is installed, or if the WordPress
+	 * 3.1 Admin Bar functionality exists. If not, we run
 	 * {@link print_shrimptest_widget()}.
 	 *
 	 * @link http://www.viper007bond.com/wordpress-plugins/wordpress-admin-bar/
 	 * @global wpdb
 	 * @global WPAdminBar
+	 * @global wp_admin_bar
 	 * @uses ShrimpTest::has_been_touched()
 	 * @uses print_shrimptest_widget()
 	 */
-	function do_adminbar( ) {
-		global $wpdb, $WPAdminBar;
+	function default_widget( ) {
+		global $wpdb, $WPAdminBar, $wp_admin_bar;
 		if ( is_user_logged_in( ) && $this->shrimp->has_been_touched( ) ) {
-			if ( empty( $WPAdminBar ) )
+			if ( empty( $WPAdminBar ) && empty( $wp_admin_bar ) )
 				$this->print_shrimptest_widget( );
 		}
 	}
 	
 	/**
 	 * Adds the ShrimpTest variant preview widget
+	 *
+	 * Only still exists for WordPress 3.0.x support. Will be deprecated in a
+	 * future release.
 	 *
 	 * @uses get_menus()
 	 */
@@ -324,9 +340,9 @@ text-shadow: -1px -1px 2px rgba(0,0,0,0.2);
 
 		echo "<li>";
 		if ( empty( $key ) )
-			$str = "<span>{$menu[0][title]}</span>";
+			$str = "<span>{$menu[0]['title']}</span>";
 		else
-			$str = "<a href=\"" . admin_url($key) . "\">{$menu[0][title]}</a>";
+			$str = "<a href=\"" . admin_url($key) . "\">{$menu[0]['title']}</a>";
 		echo "{$str}";
 		
 		if ( count($menu) > 1 ) {
@@ -335,9 +351,9 @@ text-shadow: -1px -1px 2px rgba(0,0,0,0.2);
 				if ( $menuitem == $menu[0] )
 					continue;
 				if ( empty( $key ) )
-					$str = "<span>{$menuitem[title]}<span>";
+					$str = "<span>{$menuitem['title']}<span>";
 				else
-					$str = "<a href=\"" . admin_url($key) . "\">{$menuitem[title]}</a>";
+					$str = "<a href=\"" . admin_url($key) . "\">{$menuitem['title']}</a>";
 				echo "<li>{$str}</li>";
 			}
 			echo "</ul>";
@@ -370,7 +386,9 @@ text-shadow: -1px -1px 2px rgba(0,0,0,0.2);
 
 			foreach( $touched_experiments as $experiment_id => $data ) {
 				$experiment = $this->model->get_experiment( $experiment_id );
-				$experiments["admin.php?page={$this->slug}&id={$experiment_id}"] = array(
+				if (!$experiment)
+					continue;
+				$experiments["admin.php?page={$this->slug}&action=new&id={$experiment_id}"] = array(
 					'id'=>$experiment_id,
 					'title'=>__('Experiment','shrimptest') . " {$experiment_id}: {$experiment->name} <small>(" . __('status','shrimptest') . ": {$experiment->status})</small>",
 					'custom'=>false );
@@ -391,7 +409,11 @@ text-shadow: -1px -1px 2px rgba(0,0,0,0.2);
 					else
 						$title = __('&#x3000;','shrimptest') . " {$title}"; // full-width space
 						
-					$experiments["admin-ajax.php?action={$this->slug}_override_variant&experiment_id={$experiment_id}&variant_id={$variant->variant_id}"] = array(
+					$experiments["admin-ajax.php?action={$this->slug}_override_variant" . 
+												"&experiment_id={$experiment_id}" . 
+												"&variant_id={$variant->variant_id}" .
+												"&referer={$_SERVER['REQUEST_URI']}"]
+						= array(
 						'id'=>$variant->variant_id,
 						'title'=>$title,
 						'custom'=>false );					
@@ -406,14 +428,19 @@ text-shadow: -1px -1px 2px rgba(0,0,0,0.2);
 			                         'title'=>__('&#x2605;','shrimptest'),
 			                         'custom'=>false ) );
 
-			foreach( $touched_metrics as $metric_id => $data ) {
-				if ( isset( $data->value ) )
-					$value = " <small>(" . __('value','shrimptest') . ": $data->value)</small>";
-				else
-					$value = "";
-				$metrics[] = array( 'id' => $metric_id,
-				                    'title'=>__('Metric','shrimptest') . " {$metric_id}{$value}",
-				                    'custom'=>false );
+			foreach( $touched_metrics as $experiment_id => $data ) {
+				$experiment = $this->model->get_experiment( $experiment_id );
+				if ( !$experiment )
+					continue;
+
+				$title = __('Experiment','shrimptest') . ' ' . $experiment_id . ' metric';
+				if ( isset( $data['value'] ) )
+					$title .= "<br/><small>(" . __('value','shrimptest') . ": {$data['value']})</small>";
+
+				$metrics["admin.php?page={$this->slug}&action=new&id={$experiment_id}"]
+				  = array( 'id' => $experiment_id,
+										'title' => $title,
+										'custom' => false );
 			}
 			$menus[] = $metrics;
 		}
@@ -427,7 +454,7 @@ text-shadow: -1px -1px 2px rgba(0,0,0,0.2);
 	 *
 	 * @uses get_menus()
 	 */
-	function filter_adminbar( $menus ) {
+	function filter_wpadminbar( $menus ) {
 
 		// we want to be on the left side of the menu, so find the magical point where we're on the
 		// right edge of the left side.
@@ -442,6 +469,36 @@ text-shadow: -1px -1px 2px rgba(0,0,0,0.2);
 		// now splice in our dynamic ShrimpTest menus.
 		array_splice( $menus, $i, 0, $this->get_menus( ) );
 		return $menus;
+	}
+	
+	/**
+	 * If Admin Bar functionality (WordPress 3.1) is available, add our menus there.
+	 *
+	 * @uses get_menus()
+	 * @uses WP_Admin_Bar::add_menu()
+	 */
+	function admin_bar( ) {
+		global $wp_admin_bar;
+				
+		$menus = $this->get_menus();
+		$id = 0;
+		foreach ( $menus as $key => $menu ) {
+			$id++;	
+			$wp_admin_bar->add_menu( array( 'id' => 'shrimptest_' . $id,
+			                                'title' => $menu[0]['title'],
+			                                'href' => empty($key) ? null : admin_url($key) ) );
+			
+			if ( count($menu) > 1 ) {
+				foreach ( $menu as $key => $menuitem ) {
+					if ( $menuitem == $menu[0] )
+						continue;
+
+					$wp_admin_bar->add_menu( array( 'parent' => 'shrimptest_' . $id,
+					                                'title' => $menuitem['title'],
+					                                'href' => empty($key) ? null : admin_url($key) ) );
+				}
+			}
+		}
 	}
 
 } // class ShrimpTest_Interface

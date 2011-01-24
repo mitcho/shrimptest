@@ -184,6 +184,9 @@ class ShrimpTest_Model {
 	function get_experiment( $experiment_id ) {
 		global $wpdb;
 		$experiment = $wpdb->get_row( "select * from {$this->db_prefix}experiments where experiment_id = {$experiment_id}" );
+		if (is_null($experiment))
+			return false;
+
 		if ( isset( $experiment->data ) )
 			$experiment->data = unserialize( $experiment->data );
 		$experiment->variants = $this->get_experiment_variants( $experiment_id, ARRAY_A );
@@ -386,6 +389,7 @@ class ShrimpTest_Model {
 	 * @uses zscore()
 	 * @uses normal_cdf()
 	 * @uses update_experiment()
+	 * @filter shrimptest_get_stats_value_*
 	 * @action shrimptest_experiment_duration_reached
 	 * @filter shrimptest_experiment_stats
 	 * @todo support metric types whose "type" is not "better"
@@ -776,6 +780,8 @@ class ShrimpTest_Model {
 			return -1;
 		if ( isset($b->_default) && $b->_default && !$a->_default )
 			return 1;
+		if ( isset($a->_default) && isset($b->_default) )
+			return gmp_cmp($a->_default, $b->_default);
 		if ( isset($a->name) && isset($b->name) )
 			return strcmp( $a->name, $b->name );
 		return 1;

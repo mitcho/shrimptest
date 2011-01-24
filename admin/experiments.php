@@ -1,15 +1,7 @@
 <?php
-
-if ( !class_exists( 'WP' ) )
-	die( "WordPress hasn't been loaded! :(" );
-
-if ( !current_user_can('manage_options') )
-	wp_die( __('You do not have sufficient permissions to access this page.') );
-
-if ( isset( $_GET['action'] ) && $_GET['action'] == 'new' ) {
-	include 'experiment-new.php';
-	exit;
-}
+/**
+ * @filter shrimptest_admin_experiment_row_actions
+ */
 
 $current_screen = $this->slug;
 register_column_headers($current_screen, array('id_name'=>'Experiment Name','status'=>'Status','metric'=>'Metric','metric_N'=>'Total Visitors','metric_avg'=>'Metric Average','$pmessage'=>'Result'));
@@ -99,7 +91,7 @@ foreach( $experiments as $experiment ) {
 		$actions['delete'] = '<a class="submitdelete" href="'.$delete_url.'">' . __('Delete', 'shrimptest') . '</a>';
 	}
 	
-	$actions = apply_filters( 'shrimptest_admin_experiment_row_actions', $actions );//, $post
+	$actions = apply_filters( 'shrimptest_admin_experiment_row_actions', $actions, $experiment->experiment_id );
 	$action_count = count($actions);
 	$i = 0;
 	echo '<div class="row-actions">';
