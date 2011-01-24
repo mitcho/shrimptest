@@ -18,6 +18,8 @@ add_filter( 'shrimptest_blocked_visit', 'shrimptest_plugin_check_blocklist', 10,
  * @param bool
  * @param string
  * @return bool
+ * @filter shrimptest_blockterms
+ * @filter shrimptest_blocklist
  */
 function shrimptest_plugin_check_blocklist( $blocked, $user_agent ) {
 	
