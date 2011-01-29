@@ -128,7 +128,7 @@
 			if ($already_running)
 				echo esc_html( $title );
 			else
-				echo "<input type='text' maxlength='255' name='shrimptest_title[{$id}]' id='shrimptest_title_{$id}' class='shrimptest_title' value='" . esc_attr($title) . "'/><input type=\"button\" class=\"shrimptest_title_removevariant\" value=\"-\"/>";
+				echo "<input type='text' maxlength='255' name='shrimptest_title[{$id}]' id='shrimptest_title_{$id}' class='shrimptest_title' value='" . esc_attr( $title ) . "'/><input type=\"button\" class=\"shrimptest_title_removevariant\" value=\"-\"/>";
 			echo "</td></tr>";
 		}
 
@@ -209,7 +209,8 @@
 			$this->model->delete_experiment( $experiment_id );
 			return;
 		}
-		
+
+		$variants = $this->get_titles();
 		if ( $variants == $titles )
 			return;
 
@@ -356,7 +357,7 @@ jQuery(function($){
 		$status = $this->model->get_experiment_status( $experiment_id );
 		if ( $status == 'inactive' || $status == 'reserved' ) {
 			$edit_url = "admin.php?page=" . $this->shrimp->get_interface_slug() . "&action=new&id={$experiment_id}";
-			echo "<div class='updated'><p>" . sprintf(__("This entry includes an inactive experiment. You must <a href='%s'>edit</a> and activate the experiment."),$edit_url) . "</p></div>";
+			echo "<div class='updated'><p>" . sprintf(__("This entry includes an inactive experiment. You must <a href='%s'>edit</a> and activate the experiment."), $edit_url) . "</p></div>";
 		}
 	}
 

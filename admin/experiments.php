@@ -65,7 +65,7 @@ foreach( $experiments as $experiment ) {
 	$end_date = ($experiment->end_time ? date( $date_format, $experiment->end_time ) : '');
 	
 	if ( $experiment->experiment_name )
-		$experiment_name = "{$experiment->experiment_name} (#{$experiment->experiment_id})";
+		$experiment_name = esc_html("{$experiment->experiment_name} (#{$experiment->experiment_id})");
 	else
 		$experiment_name = "#{$experiment->experiment_id}";
 		
@@ -123,7 +123,7 @@ foreach( $experiments as $experiment ) {
 	}
 	
 	$overall_result_na = $overall_result_na ? ' class="na"' : '';
-	echo "</td><td>{$status}</td><td>{$experiment->metric_name}</td><td>{$total->N}</td><td>" . $this->model->display_metric_value($experiment->metric_type, $total->avg, $total->sum) . "</td><td{$overall_result_na}>{$overall_result}</td></tr>\n";
+	echo "</td><td>{$status}</td><td>" . esc_html($experiment->metric_name) . "</td><td>{$total->N}</td><td>" . $this->model->display_metric_value($experiment->metric_type, $total->avg, $total->sum) . "</td><td{$overall_result_na}>{$overall_result}</td></tr>\n";
 	
 	unset( $control );
 	
@@ -136,6 +136,8 @@ foreach( $experiments as $experiment ) {
 	}
 		
 	foreach ( $stats as $key => $stat ) {
+		if ($stat === false)
+			continue;
 		if ($total->assignment_weight)
 			$assignment_percentage = round( $stat->assignment_weight / $total->assignment_weight * 1000 ) / 10;
 		if ( $key === 'total' )

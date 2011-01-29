@@ -439,7 +439,7 @@ class ShrimpTest {
 	 * @param array
 	 */
 	function touch_experiment( $experiment_id, $args ) {
-		if ( !is_array( $this->touched_experiments[$experiment_id] ) )
+		if ( !isset($this->touched_experiments[$experiment_id]) || !is_array( $this->touched_experiments[$experiment_id] ) )
 			$this->touched_experiments[$experiment_id] = array();
 		$this->touched_experiments[$experiment_id] = array_merge( $this->touched_experiments[$experiment_id], $args );
 	}

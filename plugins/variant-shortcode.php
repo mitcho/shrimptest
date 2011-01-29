@@ -291,7 +291,7 @@
 		?>
 		<script type="text/javascript">
 		jQuery(document).ready(function($) {
-			if ($('#variants_type').val() == '<?php echo $this->name; ?>') {
+			if ($('#variants_type').val() == '<?php echo esc_js($this->name); ?>') {
 				$('#addvariant').hide();
 				$('.removevariant').hide();
 			}
@@ -325,7 +325,7 @@
 			$status = $this->model->get_experiment_status( $experiment_id );
 			if ( $status == 'inactive' || $status == 'reserved' ) {
 				$edit_url = "admin.php?page=" . $this->shrimp->get_interface_slug() . "&action=new&id={$experiment_id}";
-				echo "<div class='updated'><p>" . sprintf(__("This entry includes an inactive experiment. You must <a href='%s'>edit</a> and activate the experiment."),$edit_url) . "</p></div>";
+				echo "<div class='updated'><p>" . sprintf(__("This entry includes an inactive experiment. You must <a href='%s'>edit</a> and activate the experiment."), $edit_url) . "</p></div>";
 			}
 		}
 	}

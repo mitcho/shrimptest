@@ -4,7 +4,7 @@ Plugin Name: ShrimpTest
 Tags: shrimptest, abtesting, testing, metrics
 Requires at least: 3.0
 Tested up to: 3.1
-Stable tag: 1.0b2
+Stable tag: 1.0b3
 
 A/B testing, the WordPress way.
 
@@ -12,7 +12,7 @@ A/B testing, the WordPress way.
 
 ShrimpTest is an A/B testing solution for WordPress under development at Automattic. For an introduction to this project, I invite you to read [Every blog has a purpose](http://shrimptest.wordpress.com/2010/06/01/every-website-has-a-purpose/).
 
-This version (1.0b2) is a release candidate. [Bug reports appreciated.](http://plugins.trac.wordpress.org/newticket?component=shrimptest)
+This version (1.0b3) is a release candidate. [Bug reports appreciated.](http://plugins.trac.wordpress.org/newticket?component=shrimptest)
 
 == Installation ==
 
@@ -46,6 +46,9 @@ Answer.
 * updated for WordPress 3.1 compatibility
 	* takes advantage of new Admin Bar functionality
 * some minor bug fixes
+= 1.0b3 =
+* some security patches (thanks Mark Jaquith!)
+* minor bug fixes
 
 == Upgrade Notice ==
 

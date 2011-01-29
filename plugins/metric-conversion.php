@@ -98,7 +98,7 @@ class ShrimpTest_Metric_Conversion {
 		}
 		// all <tr>'s here must have the class 'metric_extra metric_extra_conversion'
 		?>
-		<tr class="metric_extra metric_extra_conversion"><th><?php _e('Conversion goal URL:','shrimptest');?></th><td><input class="<?php echo $class; ?>" name="metric[conversion][conversion_url]" id="metric_extra_conversion_conversion_url" type="text" value="<?php echo $value; ?>" size="40" maxlength="255"></input></td></tr>
+		<tr class="metric_extra metric_extra_conversion"><th><?php _e('Conversion goal URL:','shrimptest');?></th><td><input class="<?php echo $class; ?>" name="metric[conversion][conversion_url]" id="metric_extra_conversion_conversion_url" type="text" value="<?php echo esc_attr($value); ?>" placeholder="<?php echo esc_attr(get_bloginfo( 'url' ));?>" size="40" maxlength="255"></input></td></tr>
 		<input id="metric_extra_conversion_sd" type="hidden" value="0.5"/>
 		<?php
 		// The maximum standard deviation possible with a bernoulli trial (0.5) is hidden
@@ -155,7 +155,7 @@ class ShrimpTest_Metric_Conversion {
 			@query_posts( $query_vars );
 			$title = @wp_title( '|', false, 'right' );
 			$title = preg_replace( '/^\s*\|?\s*(.*?)\s*\|?\s*$/', '$1', $title );
-			$metric_data['metric_name'] = sprintf( __("Conversion: <a href=\"%s\">%s</a>",'shrimptest'), $url, $title );
+			$metric_data['metric_name'] = sprintf( __("Conversion: %s",'shrimptest'), $title );
 			$metric_data['conversion_query_vars'] = $query_vars;
 	
 			// reset the conversion rules cache

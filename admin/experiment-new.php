@@ -24,7 +24,7 @@ $experiment = $experiments[0];
 
 <div class="wrap">
 <?php screen_icon(); ?>
-<h2><?php _e( 'ShrimpTest Experiment', 'shrimptest' ); ?>: <?php if ($experiment->status == 'reserved') _e('Add New'); else echo $experiment->experiment_name; ?></h2>
+<h2><?php _e( 'ShrimpTest Experiment', 'shrimptest' ); ?>: <?php if ($experiment->status == 'reserved') _e('Add New'); else echo esc_html($experiment->experiment_name); ?></h2>
 <?php
 
 
@@ -36,7 +36,7 @@ function shrimptest_details_metabox( ) {
 	$date_format = get_option('date_format');
 ?>
 <table class='shrimptest'>
-<tr><th><?php _e('Name:','shrimptest');?></th><td><input name="name" type="text" maxlength="255" size="50" value="<?php echo $experiment->experiment_name;?>" required></input></td></tr>
+<tr><th><?php _e('Name:','shrimptest');?></th><td><input name="name" type="text" maxlength="255" size="50" value="<?php echo esc_attr($experiment->experiment_name);?>" required></input></td></tr>
 <tr><th><?php _e('Status:','shrimptest');?></th><td><?php echo $status_strings[$experiment->status];?></td></tr>
 </table>
 <?php
@@ -71,7 +71,7 @@ do_action( 'shrimptest_add_variant_extra', $experiment );
 		$variants = array( (object) array( 'variant_id'=>0, 'variant_name'=>'' ), (object) array( 'variant_id'=>1, 'variant_name'=>'' ) );
 ?>
 <tr><th></th><th><?php _e('Name','shrimptest');?>:</th><th><?php _e('Assignment weight','shrimptest');?>:</th></tr>
-<tr><th><label for="variant[0][name]"><?php _e('Control','shrimptest');?>:</label> <input type="button" id="addvariant" value="+"/></th><td><input type="text" name="variant[0][name]" id="variant[0][name]" value="<?php echo $variants[0]->variant_name;?>"></input></td><td><input type="text" name="variant[0][assignment_weight]" id="variant[0][assignment_weight]" size="3" value="<?php echo (isset($variants[0]->assignment_weight) ? $variants[0]->assignment_weight : 1);?>"></input></td></tr>
+<tr><th><label for="variant[0][name]"><?php _e('Control','shrimptest');?>:</label> <input type="button" id="addvariant" value="+"/></th><td><input type="text" name="variant[0][name]" id="variant[0][name]" value="<?php echo esc_attr($variants[0]->variant_name);?>"></input></td><td><input type="text" name="variant[0][assignment_weight]" id="variant[0][assignment_weight]" size="3" value="<?php echo (isset($variants[0]->assignment_weight) ? esc_attr($variants[0]->assignment_weight) : 1);?>"></input></td></tr>
 <?php
 	foreach ( $variants as $variant ) {
 		if ( $variant->variant_id == 0 )
@@ -81,7 +81,7 @@ do_action( 'shrimptest_add_variant_extra', $experiment );
 			$removebutton = "<input type=\"button\" class=\"removevariant\" value=\"-\"/>";
 		else
 			$removebutton = '';
-		echo "<tr><th><label for=\"variant[{$variant->variant_id}][name]\">{$name}:</label> {$removebutton}</th><td><input data-variant=\"{$variant->variant_id}\" type=\"text\" name=\"variant[{$variant->variant_id}][name]\" id=\"variant[{$variant->variant_id}][name]\" value=\"{$variant->variant_name}\"></input></td><td><input type=\"text\" name=\"variant[{$variant->variant_id}][assignment_weight]\" id=\"variant[{$variant->variant_id}][assignment_weight]\" value=\"".(isset($variant->assignment_weight) ? $variant->assignment_weight : 1)."\" size=\"3\"></input></td></tr>";
+		echo "<tr><th><label for=\"variant[{$variant->variant_id}][name]\">" . esc_html($name) . ":</label> {$removebutton}</th><td><input data-variant=\"{$variant->variant_id}\" type=\"text\" name=\"variant[{$variant->variant_id}][name]\" id=\"variant[{$variant->variant_id}][name]\" value=\"" . esc_attr($variant->variant_name) . "\"></input></td><td><input type=\"text\" name=\"variant[{$variant->variant_id}][assignment_weight]\" id=\"variant[{$variant->variant_id}][assignment_weight]\" value=\"".(isset($variant->assignment_weight) ? esc_attr($variant->assignment_weight) : 1)."\" size=\"3\"></input></td></tr>";
 	}
 	echo "<script type=\"text/javascript\">newVariantId = {$variant->variant_id} + 1;</script>";
 ?>

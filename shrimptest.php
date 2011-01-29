@@ -2,7 +2,7 @@
 /*
 Plugin Name: ShrimpTest
 Description: A/B testing the WordPress way
-Version: 1.0b2
+Version: 1.0b3
 Author: mitcho (Michael 芳貴 Erlewine), Automattic
 Author URI: http://mitcho.com
 License: GPLv2
@@ -16,7 +16,7 @@ License: GPLv2
  *
  * @author mitcho (Michael Yoshitaka Erlewine) <mitcho@mitcho.com>, Automattic
  * @package ShrimpTest
- * @version 1.0b2
+ * @version 1.0b3
  * @license GPLv2
  */
 

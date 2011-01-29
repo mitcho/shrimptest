@@ -27,7 +27,7 @@ add_action( 'shrimptest_add_duration_extra', 'shrimptest_plugin_notification_for
 function shrimptest_plugin_notification_form( $experiment ) {
 	$value = isset( $experiment->data['notification_emails'] ) ? 
 	  esc_attr( $experiment->data['notification_emails'] ) : '';
-	echo '<tr><th><label for="notification_emails">' . __('Notification emails','shrimptest') . ':</th><td><input type="text" name="notification_emails" id="notification_emails" size="60" value="' . $value . '"></input><br/>
+	echo '<tr><th><label for="notification_emails">' . __('Notification emails','shrimptest') . ':</th><td><input type="text" name="notification_emails" id="notification_emails" size="60" value="' . esc_attr($value) . '"></input><br/>
 <small>' . __("Enter email addresses here to be notified when the experiment duration has been reached. Separate multiple email addresses with commas.", 'shrimptest' ) . '</small></td></tr>';
 }
 
