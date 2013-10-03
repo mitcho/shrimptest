@@ -109,7 +109,7 @@ class ShrimpTest_Interface {
 			line-height: 16px;
 		}
 		.samplecodediv {
-			min-width: 300px;
+			width: 300px; /* Was min-width, but that made Sample Code boxes uneven */
 			float: right;
 			border-left: #dfdfdf 1px solid;
 			padding: 5px;

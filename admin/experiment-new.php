@@ -175,7 +175,8 @@ jQuery(function($){
 	var updateVariantsCode = function() {
 		var code = "$variant = shrimptest_get_variant( <?php echo $experiment_id;?> );\nswitch ( $variant ) {\n";
 		
-		for (i=0; i<newVariantId; i++) {
+		// The control is 0, so we start with Variant 1
+		for (i=1; i<newVariantId; i++) {
 			code += "  case "+i+":\n    // <?php _e('Variant');?> "+i+"\n    break;\n";
 		}
 		
@@ -183,6 +184,7 @@ jQuery(function($){
 		code += "}";
 		
 		$('#variants_code').text(code);
+		
 	};
 	
 	// metrics block

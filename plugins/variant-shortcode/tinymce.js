@@ -1,9 +1,12 @@
 (function() {	
- 	tinymce.PluginManager.requireLangPack('variant_shortcode');
+
+	// Causes TinyMCE to look for undefined /wp-admin/undefined/langs/en.js instead of the correct place, which is the child folder
+ 	//tinymce.PluginManager.requireLangPack('variant_shortcode');
+ 	
 	tinymce.create('tinymce.plugins.abtest', {
 		init : function(ed, url) {
 			ed.addButton('abtest', {
-				title : 'variant_shortcode.insertABTest',
+				title : 'Insert ShrimpTest experiment', // previously 'variant_shortcode.insertABTest'
 				image : url + '/abtest.png',
 				onclick : function() {
 					insertABTest();

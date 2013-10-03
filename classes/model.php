@@ -288,6 +288,8 @@ class ShrimpTest_Model {
 		$deleted = $wpdb->query( $wpdb->prepare( 
 			"delete from {$this->db_prefix}experiments where `experiment_id` = %d", 
 			$experiment_id ) );
+			
+		delete_transient($this->stats_transient . $experiment_id);
 
 		return $deleted;
 	}
@@ -318,8 +320,10 @@ class ShrimpTest_Model {
 	function update_experiment_status( $experiment_id, $status ) {
 		global $wpdb;
 		$data = array( 'status' => $status );
-		if ( $status == 'active' )
+		if ( $status == 'active' ) {
 			$data = array( 'status' => $status, 'start_time' => date('Y-m-d H:i:s') );
+			delete_transient($this->stats_transient . $experiment_id); // It might have been set never to expire, so let's make sure it refreshes
+		}
 		if ( $status == 'finished' )
 			$data = array( 'status' => $status, 'end_time' => date('Y-m-d H:i:s') );
 		$where = compact( 'experiment_id' );
@@ -471,7 +475,7 @@ class ShrimpTest_Model {
 		$cache_timeout = $this->stats_timeout;
 		if ( isset( $experiment->data['cache_timeout'] ) )
 			$cache_timeout = $experiment->data['cache_timeout'];
-		// if the experiment is inactive, the cache can be forever!
+		// if the experiment is inactive, the cache can be longer
 		if ( $experiment->status != 'active')
 			$cache_timeout = 0; // a timeout of 0 means it will never expire
 		set_transient($this->stats_transient . $experiment_id, $stats, $cache_timeout);

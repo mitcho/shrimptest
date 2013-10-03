@@ -158,9 +158,15 @@ foreach( $experiments as $experiment ) {
 				$p = $stat->p;
 	
 				if ( $p != null ) {
+					
+					// Calculate p value
 					$null_p = round( 1 - $p, 4 );
 					$null_p = "p &lt; {$null_p}";
-	
+					
+					// This is easier for most people to understand
+					$confidence = round( $p * 100, 0 );
+					$confidence = "{$confidence}% confidence";
+						
 					if ( $p >= 0.95 ) {
 						// TODO: allow custom confidence intervals
 						if ( $p >= 0.99 )
@@ -168,10 +174,10 @@ foreach( $experiments as $experiment ) {
 						else if ( $p >= 0.95 )
 							$desc = "confident";
 						if ( !$duration_not_reached )
-							$pmessage = sprintf( "We are <strong>%s</strong> that variant %d is %s than the control. (%s)", $desc, $stat->variant_id, $stat->type, $null_p );
+							$pmessage = sprintf( "We are <strong>%s</strong> that variant %d is %s than the control. (%s)", $desc, $stat->variant_id, $stat->type, $confidence );
 					} else {
 						if ( !$duration_not_reached )
-							$pmessage = sprintf( "We cannot confidently say whether or not variant %d is %s than the control. Perhaps there is no effect or there is not enough data. (%s)", $stat->variant_id, $stat->type, $null_p );
+							$pmessage = sprintf( "We cannot confidently say whether or not variant %d is %s than the control. Perhaps there is no effect or there is not enough data. (%s)", $stat->variant_id, $stat->type, $confidence );
 					}
 				}
 			}
