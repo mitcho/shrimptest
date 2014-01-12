@@ -402,8 +402,8 @@ class ShrimpTest_Model {
 		global $wpdb;
 
 		if ( !$force ) {
-			//$cached_stats = get_transient( $this->stats_transient . $experiment_id ); // Disabled for now, it seems to get set innappropriately
-			$cached_stats = false;
+			//$cached_stats = get_transient( $this->stats_transient . $experiment_id ); 
+			$cached_stats = false; // Disabled for now, it seems to get set innappropriately
 			if ( $cached_stats !== false ) {
 				$cached_stats['stats']['cached'] = true;
 				return $cached_stats;
