@@ -113,10 +113,10 @@ foreach( $experiments as $experiment ) {
 	$duration_not_reached = false;
 	$overall_result_na = true;
 	if ( isset( $experiment->data['duration'] ) && $experiment->data['duration'] ) {
-	  if ( !isset( $experiment->data['duration_reached'] ) ) {
+	  if ( !isset( $experiment->data['duration_reached'] ) && ( $experiment->status == 'active' || $experiment->status == 'finished' ) ) {
 			$duration_not_reached = true;
 			$overall_result = sprintf( __('Experiment sample size (%d unique visitors) has not been met so no confident results are available.'), $experiment->data['duration'] );
-		} else {
+		} else if ( isset( $experiment->data['duration_reached'] ) ) {
 			$overall_result_na = false;
 			$overall_result = sprintf( __('Experiment sample size has been met.'), $experiment->data['duration'] );			
 		}
@@ -163,7 +163,8 @@ foreach( $experiments as $experiment ) {
 					$null_p = round( 1 - $p, 4 );
 					$null_p = "p &lt; {$null_p}";
 					
-					// This is easier for most people to understand
+					// This would be easier for most people to understand, but it isn't yet worded right
+					// TODO: Improve phrasing
 					$confidence = round( $p * 100, 0 );
 					$confidence = "{$confidence}% confidence";
 						
@@ -174,10 +175,10 @@ foreach( $experiments as $experiment ) {
 						else if ( $p >= 0.95 )
 							$desc = "confident";
 						if ( !$duration_not_reached )
-							$pmessage = sprintf( "We are <strong>%s</strong> that variant %d is %s than the control. (%s)", $desc, $stat->variant_id, $stat->type, $confidence );
+							$pmessage = sprintf( "We are <strong>%s</strong> that variant %d is %s than the control. (%s)", $desc, $stat->variant_id, $stat->type, $null_p );
 					} else {
 						if ( !$duration_not_reached )
-							$pmessage = sprintf( "We cannot confidently say whether or not variant %d is %s than the control. Perhaps there is no effect or there is not enough data. (%s)", $stat->variant_id, $stat->type, $confidence );
+							$pmessage = sprintf( "We cannot confidently say whether or not variant %d is %s than the control. Perhaps there is no effect or there is not enough data. (%s)", $stat->variant_id, $stat->type, $null_p );
 					}
 				}
 			}

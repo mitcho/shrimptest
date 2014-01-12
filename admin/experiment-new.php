@@ -71,7 +71,7 @@ do_action( 'shrimptest_add_variant_extra', $experiment );
 		$variants = array( (object) array( 'variant_id'=>0, 'variant_name'=>'' ), (object) array( 'variant_id'=>1, 'variant_name'=>'' ) );
 ?>
 <tr><th></th><th><?php _e('Name','shrimptest');?>:</th><th><?php _e('Assignment weight','shrimptest');?>:</th></tr>
-<tr><th><label for="variant[0][name]"><?php _e('Control','shrimptest');?>:</label> <input type="button" id="addvariant" value="+"/></th><td><input type="text" name="variant[0][name]" id="variant[0][name]" value="<?php echo esc_attr($variants[0]->variant_name);?>"></input></td><td><input type="text" name="variant[0][assignment_weight]" id="variant[0][assignment_weight]" size="3" value="<?php echo (isset($variants[0]->assignment_weight) ? esc_attr($variants[0]->assignment_weight) : 1);?>"></input></td></tr>
+<tr class="control"><th><label for="variant[0][name]"><?php _e('Control','shrimptest');?>:</label> <input type="button" id="addvariant" value="+"/></th><td><input type="text" class="variant_name" name="variant[0][name]" id="variant[0][name]" value="<?php echo esc_attr($variants[0]->variant_name);?>"></input></td><td><input type="text" class="variant_assignment_weight" name="variant[0][assignment_weight]" id="variant[0][assignment_weight]" size="3" value="<?php echo (isset($variants[0]->assignment_weight) ? esc_attr($variants[0]->assignment_weight) : 1);?>"></input></td></tr>
 <?php
 	foreach ( $variants as $variant ) {
 		if ( $variant->variant_id == 0 )
@@ -81,7 +81,7 @@ do_action( 'shrimptest_add_variant_extra', $experiment );
 			$removebutton = "<input type=\"button\" class=\"removevariant\" value=\"-\"/>";
 		else
 			$removebutton = '';
-		echo "<tr><th><label for=\"variant[{$variant->variant_id}][name]\">" . esc_html($name) . ":</label> {$removebutton}</th><td><input data-variant=\"{$variant->variant_id}\" type=\"text\" name=\"variant[{$variant->variant_id}][name]\" id=\"variant[{$variant->variant_id}][name]\" value=\"" . esc_attr($variant->variant_name) . "\"></input></td><td><input type=\"text\" name=\"variant[{$variant->variant_id}][assignment_weight]\" id=\"variant[{$variant->variant_id}][assignment_weight]\" value=\"".(isset($variant->assignment_weight) ? esc_attr($variant->assignment_weight) : 1)."\" size=\"3\"></input></td></tr>";
+		echo "<tr class=\"variant-{$variant->variant_id}\"><th><label for=\"variant[{$variant->variant_id}][name]\">" . esc_html($name) . ":</label> {$removebutton}</th><td><input class=\"variant_name\" data-variant=\"{$variant->variant_id}\" type=\"text\" name=\"variant[{$variant->variant_id}][name]\" id=\"variant[{$variant->variant_id}][name]\" value=\"" . esc_attr($variant->variant_name) . "\"></input></td><td><input class=\"variant_assignment_weight\" type=\"text\" name=\"variant[{$variant->variant_id}][assignment_weight]\" id=\"variant[{$variant->variant_id}][assignment_weight]\" value=\"".(isset($variant->assignment_weight) ? esc_attr($variant->assignment_weight) : 1)."\" size=\"3\"></input></td></tr>";
 	}
 	echo "<script type=\"text/javascript\">newVariantId = {$variant->variant_id} + 1;</script>";
 ?>
@@ -174,13 +174,16 @@ jQuery(function($){
 	
 	var updateVariantsCode = function() {
 		var code = "$variant = shrimptest_get_variant( <?php echo $experiment_id;?> );\nswitch ( $variant ) {\n";
+		var name = '';
 		
 		// The control is 0, so we start with Variant 1
 		for (i=1; i<newVariantId; i++) {
-			code += "  case "+i+":\n    // <?php _e('Variant');?> "+i+"\n    break;\n";
+			name = $('.variant-'+i+' .variant_name').val();
+			code += "  case "+i+":\n    // <?php _e('Variant');?> "+i+": "+name+"\n    break;\n";
 		}
 		
-		code += "  default:\n    // <?php _e('Control');?>\n";
+		name = $('tr.control .variant_name').val();
+		code += "  default:\n    // <?php _e('Control');?>: "+name+"\n";
 		code += "}";
 		
 		$('#variants_code').text(code);
@@ -214,12 +217,20 @@ jQuery(function($){
 		$(document).trigger('variants_extra_'+variants_type);
 	}
 	$('#variants_type').change(ensureVariantsConsistency);
+	
+	// variants name
+	var updateVariantsNameInCode = function() {
+		$('.variant_name').keyup(function(){
+			updateVariantsCode();
+		});
+	}
+	updateVariantsNameInCode(); // Add keyup listener to existing rows
 
 	// variants: manual
 	$('#addvariant').click(function(){
 		$('.removevariant').hide();
 		
-		var newRow = $("<tr><th><label></label> <input type=\"button\" class=\"removevariant\" value=\"-\"/></th><td><input type=\"text\"></input></td><td><input type=\"text\" size=\"3\" value=\"1\"></input></td></tr>");
+		var newRow = $("<tr class=\"variant-"+newVariantId+"\"><th><label></label> <input type=\"button\" class=\"removevariant\" value=\"-\"/></th><td><input class=\"variant_name\" type=\"text\"></input></td><td><input class=\"variant_assignment_weight\" type=\"text\" size=\"3\" value=\"1\"></input></td></tr>");
 		
 		newRow
 			.attr('data-variant',newVariantId)
@@ -229,7 +240,10 @@ jQuery(function($){
 			.end()
 			.find('input[type=text]').eq(0)
 				.attr({id:'variant['+newVariantId+'][name]',name:'variant['+newVariantId+'][name]'})
-			.end()
+			.end();
+		
+		// .attr() here wasn't running when this was a part of the above block of code, don't know why
+		newRow
 			.find('input[type=text]').eq(1)
 				.attr({id:'variant['+newVariantId+'][assignment_weight]',name:'variant['+newVariantId+'][assignment_weight]'})
 			.end();
@@ -238,6 +252,7 @@ jQuery(function($){
 
 		newVariantId++;
 		
+		updateVariantsNameInCode(); // Add keyup listener to new row
 		updateVariantsCode();
 	});
 	

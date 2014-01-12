@@ -402,7 +402,8 @@ class ShrimpTest_Model {
 		global $wpdb;
 
 		if ( !$force ) {
-			$cached_stats = get_transient( $this->stats_transient . $experiment_id );
+			//$cached_stats = get_transient( $this->stats_transient . $experiment_id ); // Disabled for now, it seems to get set innappropriately
+			$cached_stats = false;
 			if ( $cached_stats !== false ) {
 				$cached_stats['stats']['cached'] = true;
 				return $cached_stats;
@@ -571,8 +572,14 @@ class ShrimpTest_Model {
 		$variant_data = array_replace_recursive( $old_variant, $variant_data );
 
 		extract( $variant_data );
-		if ( !isset( $variant_name ) || !isset( $assignment_weight ) || empty( $assignment_weight ) )
-			wp_die( 'The variant must have a <code>name</code> and a non-zero <code>assignment_weight</code>' );
+		if ( !isset( $variant_name ) || !isset( $assignment_weight ) || empty( $assignment_weight ) ) {
+			if ( !isset( $variant_name ) && ( !isset( $assignment_weight ) || empty( $assignment_weight ) ) )
+				wp_die( 'Variant ' . $variant_id . ' must have an assignment weight other than zero and a name' );
+			if ( !isset( $variant_name ) ) 
+				wp_die( 'Variant ' . $variant_id . ' must have a name' );
+			if ( !isset( $assignment_weight ) || empty( $assignment_weight ) )
+				wp_die( 'Variant ' . $variant_id . ' must have an assignment weight other than zero' );
+		}
 
 		$data = '';
 		if ( isset( $variant_data['data'] ) )
