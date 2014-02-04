@@ -654,6 +654,7 @@ setTimeout(function() {
 							PRIMARY KEY (experiment_id,variant_id)
 						);",
 						"CREATE TABLE {$this->model->db_prefix}visitors_variants (
+							visitors_variants_id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
 							visitor_id BIGINT(20) NOT NULL ,
 							experiment_id INT NOT NULL ,
 							variant_id INT NOT NULL ,
